@@ -1,0 +1,255 @@
+local Player = game:GetService("Players").LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RepStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Variables for Colors & Themes
+local COLORS = {
+    MainGreen = Color3.fromRGB(35, 35, 35),
+    DarkPanel = Color3.fromRGB(35, 35, 35),
+    White = Color3.fromRGB(255, 255, 255),
+    SliderTrack = Color3.fromRGB(255, 255, 255),
+    SliderKnob = Color3.fromRGB(200, 200, 200)
+}
+
+local FONT = Enum.Font.LuckiestGuy
+
+-- CONFIGURATION
+local currentTransparency = 1.0
+local isEnabled = false
+local trackedParts = {} 
+
+-- GET NAMES FROM REPLICATED STORAGE (With Safety Check)
+local brainrotNames = {}
+local modelsFolder = RepStorage:WaitForChild("Models", 5)
+if modelsFolder then
+    local animalsFolder = modelsFolder:WaitForChild("Animals", 5)
+    if animalsFolder then
+        for _, model in pairs(animalsFolder:GetChildren()) do
+            brainrotNames[model.Name] = true
+        end
+    end
+end
+
+-- Cleanup existing UI
+if PlayerGui:FindFirstChild("BrainrotUI") then PlayerGui.BrainrotUI:Destroy() end
+
+-- Create ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BrainrotUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -110)
+MainFrame.BackgroundColor3 = COLORS.MainGreen
+MainFrame.BackgroundTransparency = 0.8
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 20)
+
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = COLORS.White
+MainStroke.Thickness = 2.5
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Header Title
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(0.8, 0, 0, 40)
+Title.Position = UDim2.new(0.05, 0, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "BRAINROT TRANSPARENCY"
+Title.TextColor3 = COLORS.White
+Title.Font = FONT
+Title.TextSize = 20
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = MainFrame
+
+-- Minimize Button
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Name = "MinimizeBtn"
+MinimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+MinimizeBtn.Position = UDim2.new(0.85, 0, 0.05, 0)
+MinimizeBtn.BackgroundColor3 = COLORS.White
+MinimizeBtn.Text = "▼"
+MinimizeBtn.TextColor3 = Color3.new(0, 0, 0)
+MinimizeBtn.Font = Enum.Font.SourceSansBold
+MinimizeBtn.TextSize = 20
+MinimizeBtn.Parent = MainFrame
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
+
+-- Content Container
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Size = UDim2.new(1, 0, 1, -50)
+Content.Position = UDim2.new(0, 0, 0, 50)
+Content.BackgroundTransparency = 1
+Content.Parent = MainFrame
+
+-- Toggle Button
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 45)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0, 5)
+ToggleBtn.BackgroundColor3 = COLORS.DarkPanel
+ToggleBtn.BackgroundTransparency = 0.2
+ToggleBtn.Text = "TRANSPARENCY: OFF"
+ToggleBtn.TextColor3 = COLORS.White
+ToggleBtn.Font = FONT
+ToggleBtn.TextSize = 22
+ToggleBtn.Parent = Content
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 10)
+
+-- Slider Area
+local SliderArea = Instance.new("Frame")
+SliderArea.Size = UDim2.new(0.9, 0, 0, 40)
+SliderArea.Position = UDim2.new(0.05, 0, 0, 65)
+SliderArea.BackgroundTransparency = 1
+SliderArea.Parent = Content
+
+local Track = Instance.new("Frame")
+Track.Size = UDim2.new(0.7, 0, 0, 6)
+Track.Position = UDim2.new(0, 0, 0.5, -3)
+Track.BackgroundColor3 = COLORS.White
+Track.BorderSizePixel = 0
+Track.Parent = SliderArea
+Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0)
+
+local Knob = Instance.new("TextButton")
+Knob.Name = "Knob"
+Knob.Size = UDim2.new(0, 18, 0, 18)
+Knob.Position = UDim2.new(1, -18, 0.5, -9)
+Knob.BackgroundColor3 = COLORS.SliderKnob
+Knob.Text = ""
+Knob.Parent = Track
+Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+
+local Percentage = Instance.new("TextLabel")
+Percentage.Size = UDim2.new(0.25, 0, 0, 35)
+Percentage.Position = UDim2.new(0.75, 0, 0.5, -17)
+Percentage.BackgroundColor3 = COLORS.DarkPanel
+Percentage.BackgroundTransparency = 0.3
+Percentage.Text = "100%"
+Percentage.TextColor3 = COLORS.White
+Percentage.Font = FONT
+Percentage.TextSize = 18
+Percentage.Parent = SliderArea
+Instance.new("UICorner", Percentage).CornerRadius = UDim.new(0, 8)
+
+local Footer = Instance.new("TextLabel")
+Footer.Size = UDim2.new(1, 0, 0, 30)
+Footer.Position = UDim2.new(0, 0, 0.85, 0)
+Footer.BackgroundTransparency = 1
+Footer.Text = "discord.gg/cUBuPazCZe"
+Footer.TextColor3 = COLORS.White
+Footer.Font = FONT
+Footer.TextSize = 18
+Footer.Parent = Content
+
+-------------------------------------------------------------------------------
+-- CORE LOGIC
+-------------------------------------------------------------------------------
+
+local function checkAndTrack(obj)
+    if obj:IsA("BasePart") or obj:IsA("Decal") then
+        local nextParent = obj.Parent
+        while nextParent and nextParent ~= workspace do
+            if brainrotNames[nextParent.Name] then
+                trackedParts[obj] = true
+                break
+            end
+            nextParent = nextParent.Parent
+        end
+    end
+end
+
+-- Force Loop
+RunService.RenderStepped:Connect(function()
+    for obj, _ in pairs(trackedParts) do
+        if obj and obj.Parent then
+            obj.LocalTransparencyModifier = isEnabled and currentTransparency or 0
+        else
+            trackedParts[obj] = nil
+        end
+    end
+end)
+
+-------------------------------------------------------------------------------
+-- UI INTERACTIONS
+-------------------------------------------------------------------------------
+
+-- Dragging
+local dragging, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Minimize
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    Content.Visible = not minimized
+    MainFrame:TweenSize(minimized and UDim2.new(0, 300, 0, 50) or UDim2.new(0, 300, 0, 220), "Out", "Quad", 0.2, true)
+    MinimizeBtn.Text = minimized and "▲" or "▼"
+end)
+
+-- Slider
+local isSliding = false
+local function updateSlider()
+    local mousePos = UserInputService:GetMouseLocation().X
+    local trackPos = Track.AbsolutePosition.X
+    local trackSize = Track.AbsoluteSize.X
+    local relativePos = math.clamp((mousePos - trackPos) / trackSize, 0, 1)
+    
+    Knob.Position = UDim2.new(relativePos, -9, 0.5, -9)
+    Percentage.Text = math.floor(relativePos * 100) .. "%"
+    currentTransparency = relativePos
+end
+
+Knob.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then isSliding = true end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then isSliding = false end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider()
+    end
+end)
+
+-- Toggle
+ToggleBtn.MouseButton1Click:Connect(function()
+    isEnabled = not isEnabled
+    ToggleBtn.Text = isEnabled and "TRANSPARENCY: ON" or "TRANSPARENCY: OFF"
+end)
+
+-------------------------------------------------------------------------------
+-- INITIALIZE
+-------------------------------------------------------------------------------
+for _, obj in pairs(workspace:GetDescendants()) do checkAndTrack(obj) end
+workspace.DescendantAdded:Connect(checkAndTrack)
