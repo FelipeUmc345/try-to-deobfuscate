@@ -1,0 +1,587 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
+local Workspace         = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
+
+local isTpMoving = false
+
+local Packages      = ReplicatedStorage:WaitForChild("Packages")
+local Datas         = ReplicatedStorage:WaitForChild("Datas")
+local Shared        = ReplicatedStorage:WaitForChild("Shared")
+local Utils         = ReplicatedStorage:WaitForChild("Utils")
+local Synchronizer  = require(Packages:WaitForChild("Synchronizer"))
+local AnimalsData   = require(Datas:WaitForChild("Animals"))
+local AnimalsShared = require(Shared:WaitForChild("Animals"))
+local NumberUtils   = require(Utils:WaitForChild("NumberUtils"))
+
+local animalsCache = {}
+local lastHashes   = {}
+
+local function getAnimalHash(al)
+    if not al then return "" end
+    local h = ""
+    for slot, d in pairs(al) do
+        if type(d) == "table" then
+            h = h .. tostring(slot) .. tostring(d.Index) .. tostring(d.Mutation)
+        end
+    end
+    return h
+end
+
+local function isMyPlot(plotName)
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return false end
+    if not plots:FindFirstChild(plotName) then return false end
+    local ok, ch = pcall(function() return Synchronizer:Get(plotName) end)
+    if not ok or not ch then return false end
+    local owner = ch:Get("Owner")
+    if not owner then return false end
+    if typeof(owner) == "Instance" and owner:IsA("Player") then return owner.UserId == LocalPlayer.UserId end
+    if typeof(owner) == "table" and owner.UserId then return owner.UserId == LocalPlayer.UserId end
+    return false
+end
+
+local function scanAllPlots()
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return end
+    for _, plot in ipairs(plots:GetChildren()) do
+        pcall(function()
+            local ch = Synchronizer:Get(plot.Name)
+            if not ch then return end
+            local al   = ch:Get("AnimalList")
+            local hash = getAnimalHash(al)
+            if lastHashes[plot.Name] == hash then return end
+            lastHashes[plot.Name] = hash
+            for i = #animalsCache, 1, -1 do
+                if animalsCache[i].plot == plot.Name then table.remove(animalsCache, i) end
+            end
+            local owner = ch:Get("Owner")
+            if not owner then return end
+            local ownerName = (typeof(owner)=="Instance" and owner.Name) or (typeof(owner)=="table" and owner.Name) or "Unknown"
+            if not Players:FindFirstChild(ownerName) then return end
+            if not al then return end
+            for slot, ad in pairs(al) do
+                if type(ad) == "table" then
+                    local aInfo = AnimalsData[ad.Index]
+                    if aInfo then
+                        local mut    = ad.Mutation or "None"
+                        if mut == "Yin Yang" then mut = "YinYang" end
+                        local traits = (ad.Traits and #ad.Traits > 0) and ad.Traits or {}
+                        local gv     = AnimalsShared:GetGeneration(ad.Index, ad.Mutation, traits, nil)
+                        local gt     = "$" .. NumberUtils:ToString(gv) .. "/s"
+                        table.insert(animalsCache, {
+                            name     = aInfo.DisplayName or ad.Index,
+                            genValue = gv,
+                            genText  = gt,
+                            mutation = mut,
+                            owner    = ownerName,
+                            plot     = plot.Name,
+                            slot     = tostring(slot),
+                            uid      = plot.Name .. "_" .. tostring(slot),
+                        })
+                    end
+                end
+            end
+        end)
+    end
+    table.sort(animalsCache, function(a, b) return a.genValue > b.genValue end)
+end
+
+task.spawn(function()
+    while true do
+        scanAllPlots()
+        task.wait(1)
+    end
+end)
+
+local function getBestTarget()
+    for _, a in ipairs(animalsCache) do
+        if a.genValue >= 1 and not isMyPlot(a.plot) then
+            return a
+        end
+    end
+    return nil
+end
+
+local function findAdorneeGlobal(animalData)
+    if not animalData then return nil end
+    local plots   = Workspace:FindFirstChild("Plots")
+    local plot    = plots and plots:FindFirstChild(animalData.plot)
+    if not plot then return nil end
+    local podiums = plot:FindFirstChild("AnimalPodiums")
+    if not podiums then return nil end
+    local podium  = podiums:FindFirstChild(animalData.slot)
+    if not podium then return nil end
+    local base    = podium:FindFirstChild("Base")
+    if not base then return nil end
+    return base:FindFirstChild("Spawn") or base:FindFirstChildWhichIsA("BasePart") or base
+end
+
+local function isTargetPlotUnlocked(plotName)
+    local ok, res = pcall(function()
+        local plots = Workspace:FindFirstChild("Plots")
+        if not plots then return false end
+        local targetPlot = plots:FindFirstChild(plotName)
+        if not targetPlot then return false end
+        local unlockFolder = targetPlot:FindFirstChild("Unlock")
+        if not unlockFolder then return true end
+        local unlockItems = {}
+        for _, item in pairs(unlockFolder:GetChildren()) do
+            local pos = nil
+            if item:IsA("Model") then pcall(function() pos = item:GetPivot().Position end)
+            elseif item:IsA("BasePart") then pos = item.Position end
+            if pos then table.insert(unlockItems, {Object = item, Height = pos.Y}) end
+        end
+        table.sort(unlockItems, function(a, b) return a.Height < b.Height end)
+        if #unlockItems == 0 then return true end
+        local floor1Door = unlockItems[1].Object
+        for _, desc in ipairs(floor1Door:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") and desc.Enabled then return false end
+        end
+        for _, child in ipairs(floor1Door:GetChildren()) do
+            if child:IsA("ProximityPrompt") and child.Enabled then return false end
+        end
+        return true
+    end)
+    return ok and res or false
+end
+
+local function getControls()
+    local playerScripts = LocalPlayer:WaitForChild("PlayerScripts")
+    local playerModule = require(playerScripts:WaitForChild("PlayerModule"))
+    return playerModule:GetControls()
+end
+
+local function walkForward(seconds)
+    local char = LocalPlayer.Character
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local Controls = getControls()
+    local lookVector = hrp.CFrame.LookVector
+    Controls:Disable()
+    local startTime = os.clock()
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if os.clock() - startTime >= seconds then
+            conn:Disconnect()
+            hum:Move(Vector3.zero, false)
+            Controls:Enable()
+            return
+        end
+        hum:Move(lookVector, false)
+    end)
+end
+
+local function instantClone()
+    if _G.isCloning then return end
+    _G.isCloning = true
+    local ok, err = pcall(function()
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if not (char and hum) then error("No character") end
+        local cloner = LocalPlayer.Backpack:FindFirstChild("Quantum Cloner") or char:FindFirstChild("Quantum Cloner")
+        if not cloner then error("No Quantum Cloner") end
+        hum:EquipTool(cloner)
+        task.wait(0.05)
+        local inHand = char:FindFirstChild("Quantum Cloner")
+        if inHand then
+            inHand:Activate()
+            task.wait(0.02)
+            inHand:Activate()
+        end
+        task.wait(0.05)
+        local targetText = "Change With Clone"
+        local altText = "Mude com o clone"
+        local startTime = tick()
+        local found = false
+        while tick() - startTime < 3 and not found do
+            local pg = LocalPlayer.PlayerGui
+            if pg then
+                for _, v in ipairs(pg:GetDescendants()) do
+                    if v:IsA("TextLabel") or v:IsA("TextButton") then
+                        local text = v.Text or ""
+                        if text:find(targetText) or text:find(altText) then
+                            local btn = v:IsA("GuiButton") and v or v:FindFirstAncestorOfClass("TextButton") or v:FindFirstAncestorOfClass("ImageButton")
+                            if btn and btn.Visible and btn.Active then
+                                firesignal(btn.MouseButton1Up)
+                                task.wait(0.1)
+                                found = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if not found then task.wait(0.02) end
+        end
+    end)
+    _G.isCloning = false
+end
+
+local function flyToBrainrot(targetPart)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChild("Humanoid")
+    if not hrp or not hum or not targetPart then return end
+    local carpet = LocalPlayer.Backpack:FindFirstChild("Flying Carpet") or char:FindFirstChild("Flying Carpet")
+    if carpet then hum:EquipTool(carpet) end
+    local verticalDiff = targetPart.Position.Y - hrp.Position.Y
+    if verticalDiff > 2 then
+        local airPos = Vector3.new(targetPart.Position.X, targetPart.Position.Y - 8, targetPart.Position.Z)
+        local plat = Instance.new("Part")
+        plat.Name = "XiTempPlatform"
+        plat.Size = Vector3.new(3, 1, 3)
+        plat.Position = airPos - Vector3.new(0, 5, 0)
+        plat.Color = Color3.new(1, 0, 0)
+        plat.Material = Enum.Material.Neon
+        plat.Anchored = true
+        plat.CanCollide = true
+        plat.Transparency = 1
+        plat.Parent = Workspace
+        RunService.Heartbeat:Wait()
+        for _ = 1, 10 do
+            if not LocalPlayer:GetAttribute("Stealing") then
+                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+                hrp.CFrame = CFrame.new(airPos)
+                task.wait(0.05)
+            end
+        end
+        local platDestroyed = false
+        local function destroyPlat()
+            if not platDestroyed then
+                platDestroyed = true
+                pcall(function() plat:Destroy() end)
+            end
+        end
+        local stealConn
+        stealConn = LocalPlayer:GetAttributeChangedSignal("Stealing"):Connect(function()
+            if LocalPlayer:GetAttribute("Stealing") then
+                stealConn:Disconnect()
+                destroyPlat()
+            end
+        end)
+        task.spawn(function()
+            local s = tick()
+            while tick() - s < 20 do
+                if platDestroyed or LocalPlayer:GetAttribute("Stealing") then break end
+                task.wait(0.1)
+            end
+            if stealConn then stealConn:Disconnect() end
+            destroyPlat()
+        end)
+    else
+        for _ = 1, 10 do
+            if LocalPlayer:GetAttribute("Stealing") then break end
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+            if (hrp.Position - targetPart.Position).Magnitude > 3 then
+                hrp.CFrame = CFrame.new(targetPart.Position)
+                task.wait(0.05)
+            end
+            task.wait(0.05)
+        end
+    end
+end
+
+local function waitSecondsHeartbeat(sec)
+    local t = 0
+    while t < sec do t += RunService.Heartbeat:Wait() end
+end
+
+local function waitUntilHeartbeat(predicate, timeoutSec)
+    local t = 0
+    while true do
+        if predicate() then return true end
+        t += RunService.Heartbeat:Wait()
+        if timeoutSec and t >= timeoutSec then return false end
+    end
+end
+
+local function getClosestBaseSign(brainrotPart)
+    if not brainrotPart or not brainrotPart:IsA("BasePart") then return nil end
+    local closestPart, closestDist = nil, math.huge
+    for _, label in ipairs(Workspace:GetDescendants()) do
+        if label:IsA("TextLabel") then
+            local txt = tostring(label.Text or "")
+            if txt ~= "" and txt:lower():find("base", 1, true) then
+                local gui = label:FindFirstAncestorWhichIsA("SurfaceGui")
+                if gui then
+                    local part = gui.Adornee or gui.Parent
+                    if part and part:IsA("BasePart") then
+                        local dist = (part.Position - brainrotPart.Position).Magnitude
+                        if dist < closestDist then closestDist = dist; closestPart = part end
+                    end
+                end
+            end
+        end
+    end
+    return closestPart
+end
+
+local function riseToY(hrp, targetY)
+    if not hrp then return end
+    local MAX_TIME = 3.0
+    local start = os.clock()
+    local _spdMin, _spdMax = 130, 200
+    while hrp.Parent and hrp.Position.Y < targetY do
+        local dist  = targetY - hrp.Position.Y
+        local speed = math.clamp(dist * 20, _spdMin, _spdMax)
+        hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, speed, hrp.AssemblyLinearVelocity.Z)
+        if os.clock() - start > MAX_TIME then break end
+        RunService.Heartbeat:Wait()
+    end
+    hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+end
+
+local function equipTpToolAndWait(hum)
+    if not hum then return end
+    local char = hum.Parent
+    local tool = LocalPlayer.Backpack:FindFirstChild("Flying Carpet") or (char and char:FindFirstChild("Flying Carpet"))
+    if tool then hum:EquipTool(tool); task.wait(0.02) end
+end
+
+local TP_V2_MED_POINTS = {
+    {name="MED1", pos=Vector3.new(-410.65,-5.68,-46.10)},
+    {name="MED2", pos=Vector3.new(-410.91,-5.68,168.89)},
+}
+
+local function flatDistance(a, b)
+    return (Vector3.new(a.X,0,a.Z) - Vector3.new(b.X,0,b.Z)).Magnitude
+end
+
+local function getNearestTeleportV2MedPoint(fromPos)
+    local bestPoint, bestDist = nil, math.huge
+    for _, entry in ipairs(TP_V2_MED_POINTS) do
+        local dist = flatDistance(fromPos, entry.pos)
+        if dist < bestDist then bestDist = dist; bestPoint = entry end
+    end
+    return bestPoint
+end
+
+local function runTP()
+    if isTpMoving then return end
+    local targetPetData = getBestTarget()
+    if not targetPetData then
+        warn("[TP GUI] Nenhum brainrot válido encontrado no servidor.")
+        return
+    end
+    local char = LocalPlayer.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChild("Humanoid")
+    if not hrp or not hum or hum.Health <= 0 then return end
+    isTpMoving = true
+    local ok, err = pcall(function()
+        local targetPart = findAdorneeGlobal(targetPetData)
+        if not targetPart then error("targetPart nil") end
+        local exactPos = targetPart.Position
+        equipTpToolAndWait(hum)
+        local isSecondFloor = exactPos.Y > 10
+        local signPart = getClosestBaseSign(targetPart)
+        if not signPart then error("signPart nil") end
+        local signCF  = signPart.CFrame
+        local LEFT    = -signCF.RightVector
+        local FORWARD = signCF.LookVector
+        local BACK    = -FORWARD
+        local medPoint = getNearestTeleportV2MedPoint(hrp.Position)
+        if not medPoint then error("MED point nil") end
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        if hum and hum.Parent then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+        task.wait(0.01)
+        hrp.CFrame = CFrame.new(-409, 23, hrp.Position.Z)
+        task.wait(0.1)
+        riseToY(hrp, 40)
+        local tpPos
+        if exactPos.Y <= 6.313370704650879 then
+            local frontPoint = signPart.Position + (FORWARD * 20)
+            local backPoint  = signPart.Position + (BACK * 20)
+            local myFlat     = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+            local distFront  = (Vector3.new(frontPoint.X,0,frontPoint.Z) - myFlat).Magnitude
+            local distBack   = (Vector3.new(backPoint.X,0,backPoint.Z)   - myFlat).Magnitude
+            local chosen     = (distFront < distBack) and frontPoint or backPoint
+            tpPos = Vector3.new(chosen.X, -4.8, chosen.Z)
+        else
+            local frontPoint = signPart.Position + (FORWARD * 15)
+            local backPoint  = signPart.Position + (BACK * 15)
+            local myFlat     = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+            local distFront  = (Vector3.new(frontPoint.X,0,frontPoint.Z) - myFlat).Magnitude
+            local distBack   = (Vector3.new(backPoint.X,0,backPoint.Z)   - myFlat).Magnitude
+            local chosen     = (distBack < distFront) and backPoint or frontPoint
+            tpPos = Vector3.new(chosen.X, signPart.Position.Y + 4, chosen.Z)
+        end
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.CFrame = CFrame.lookAt(tpPos, tpPos + LEFT)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        waitUntilHeartbeat(function()
+            return hrp and hrp.Parent
+                and (hrp.Position - tpPos).Magnitude <= 2
+                and hum and hum.FloorMaterial ~= Enum.Material.Air
+        end, 3.0)
+        if isSecondFloor or not isTargetPlotUnlocked(targetPetData.plot) then
+            waitSecondsHeartbeat(0.05)
+            if isSecondFloor then
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                waitSecondsHeartbeat(0.01)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -2.5)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+            else
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                waitSecondsHeartbeat(0.03)
+                walkForward(0.15)
+            end
+            waitSecondsHeartbeat(0.07)
+            local miniPos = hrp.Position
+            waitSecondsHeartbeat(0.01)
+            local stillAtMiniPos = waitUntilHeartbeat(function()
+                return hrp and hrp.Parent and (hrp.Position - miniPos).Magnitude <= 4.0
+            end, 1.5)
+            if not stillAtMiniPos then error("moved away from mini TP position before clone") end
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            instantClone()
+            waitUntilHeartbeat(function()
+                return hrp and hrp.Parent and (hrp.Position - miniPos).Magnitude >= 0.35
+            end, 4.0)
+            while _G.isCloning do task.wait() end
+        end
+        task.wait(0.15)
+        equipTpToolAndWait(hum)
+        flyToBrainrot(targetPart)
+    end)
+    isTpMoving = false
+    if not ok then warn("[TP GUI] runTP error:", err) end
+end
+
+local existing = PlayerGui:FindFirstChild("CerberusTPGui_v2")
+if existing then existing:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name           = "CerberusTPGui_v2"
+ScreenGui.ResetOnSpawn   = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder   = 25
+ScreenGui.Parent         = PlayerGui
+
+local C = {
+    BG       = Color3.fromRGB(6, 2, 2),
+    RED_DK   = Color3.fromRGB(60, 5, 8),
+    WHITE    = Color3.fromRGB(255, 255, 255),
+    TEXT_SEC = Color3.fromRGB(155, 135, 135),
+}
+
+local function Tw(obj, props, t)
+    TweenService:Create(obj, TweenInfo.new(t or 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Name                   = "MainFrame"
+MainFrame.Size                   = UDim2.new(0, 215, 0, 115)
+MainFrame.Position               = UDim2.new(0.5, -107, 0.5, -85)
+MainFrame.BackgroundColor3       = C.BG
+MainFrame.BackgroundTransparency = 0.02
+MainFrame.BorderSizePixel        = 0
+MainFrame.ZIndex                 = 100
+MainFrame.Active                 = true
+MainFrame.ClipsDescendants       = false
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
+
+local mainGrad = Instance.new("UIGradient", MainFrame)
+mainGrad.Rotation = 130
+mainGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(180, 20, 28)),
+    ColorSequenceKeypoint.new(0.45, Color3.fromRGB(90,  10, 14)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(240, 240, 240)),
+}
+
+local mainStroke = Instance.new("UIStroke", MainFrame)
+mainStroke.Color        = Color3.fromRGB(160, 18, 25)
+mainStroke.Thickness    = 1.5
+mainStroke.Transparency = 0.20
+
+do
+    local drag, dStart, dPos, dInput = false, nil, nil, nil
+    MainFrame.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            drag = true; dStart = i.Position; dPos = MainFrame.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then drag = false end
+            end)
+        end
+    end)
+    MainFrame.InputChanged:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then dInput = i end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if i == dInput and drag then
+            local d = i.Position - dStart
+            MainFrame.Position = UDim2.new(dPos.X.Scale, dPos.X.Offset + d.X, dPos.Y.Scale, dPos.Y.Offset + d.Y)
+        end
+    end)
+end
+
+local TitleLbl = Instance.new("TextLabel", MainFrame)
+TitleLbl.Size                   = UDim2.new(1, 0, 0, 40)
+TitleLbl.Position               = UDim2.new(0, 0, 0, 4)
+TitleLbl.BackgroundTransparency = 1
+TitleLbl.Text                   = "⚡・TP・⚡"
+TitleLbl.Font                   = Enum.Font.GothamBlack
+TitleLbl.TextSize               = 19
+TitleLbl.TextColor3             = C.WHITE
+TitleLbl.ZIndex                 = 101
+TitleLbl.TextXAlignment         = Enum.TextXAlignment.Center
+
+local Div1 = Instance.new("Frame", MainFrame)
+Div1.Size                   = UDim2.new(1, -24, 0, 1)
+Div1.Position               = UDim2.new(0, 12, 0, 47)
+Div1.BackgroundColor3       = C.WHITE
+Div1.BackgroundTransparency = 0.80
+Div1.BorderSizePixel        = 0
+Div1.ZIndex                 = 101
+
+local TpBtn = Instance.new("TextButton", MainFrame)
+TpBtn.Name                   = "TpBtn"
+TpBtn.Size                   = UDim2.new(1, -28, 0, 46)
+TpBtn.Position               = UDim2.new(0, 14, 0, 55)
+TpBtn.BackgroundColor3       = C.BG
+TpBtn.BackgroundTransparency = 0.04
+TpBtn.Text                   = "⚡  TP  ⚡"
+TpBtn.Font                   = Enum.Font.GothamBlack
+TpBtn.TextSize               = 15
+TpBtn.TextColor3             = C.WHITE
+TpBtn.BorderSizePixel        = 0
+TpBtn.AutoButtonColor        = false
+TpBtn.ZIndex                 = 102
+TpBtn.ClipsDescendants       = false
+
+Instance.new("UICorner", TpBtn).CornerRadius = UDim.new(0, 10)
+
+local btnGrad = Instance.new("UIGradient", TpBtn)
+btnGrad.Rotation = 130
+btnGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0,    Color3.fromRGB(160, 18, 24)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(80,  10, 14)),
+    ColorSequenceKeypoint.new(1,    Color3.fromRGB(220, 220, 220)),
+}
+
+local btnStroke = Instance.new("UIStroke", TpBtn)
+btnStroke.Color        = Color3.fromRGB(180, 20, 28)
+btnStroke.Thickness    = 1.3
+btnStroke.Transparency = 0.15
+
+TpBtn.MouseButton1Down:Connect(function()
+    Tw(TpBtn,     {BackgroundColor3=C.RED_DK}, 0.08)
+    Tw(btnStroke, {Color=C.WHITE},              0.08)
+end)
+TpBtn.MouseButton1Up:Connect(function()
+    Tw(TpBtn,     {BackgroundColor3=C.BG},           0.15)
+    Tw(btnStroke, {Color=Color3.fromRGB(180,20,28)}, 0.15)
+    if not isTpMoving then task.spawn(runTP) end
+end)
