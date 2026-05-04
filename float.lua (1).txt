@@ -1,0 +1,187 @@
+-- ============================================================
+-- Float Script (22s source) - Standalone
+-- ============================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+local FloatHeight = 10  -- default, adjustable via slider
+local floatConn = nil
+
+local function startFloat()
+    if floatConn then return end
+    local c = player.Character; if not c then return end
+    local hrp = c:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    local floatOriginY = hrp.Position.Y + FloatHeight
+    local floatStartTime = tick()
+    local floatDescending = false
+
+    floatConn = RunService.Heartbeat:Connect(function()
+        local c2 = player.Character; if not c2 then return end
+        local h = c2:FindFirstChild("HumanoidRootPart"); if not h then return end
+        local hum2 = c2:FindFirstChildOfClass("Humanoid")
+        local moveDir = hum2 and hum2.MoveDirection or Vector3.zero
+        if tick() - floatStartTime >= 4 then floatDescending = true end
+        local currentY = h.Position.Y
+        local vertVel
+        if floatDescending then
+            vertVel = -20
+            if currentY <= floatOriginY - FloatHeight + 0.5 then
+                h.AssemblyLinearVelocity = Vector3.zero
+                if floatConn then floatConn:Disconnect(); floatConn = nil end
+                updateToggleVisual(false)
+                return
+            end
+        else
+            local diff = floatOriginY - currentY
+            if diff > 0.3 then vertVel = math.clamp(diff * 8, 5, 50)
+            elseif diff < -0.3 then vertVel = math.clamp(diff * 8, -50, -5)
+            else vertVel = 0 end
+        end
+        local spd = 29
+        local horizX = moveDir.Magnitude > 0.1 and moveDir.X * spd or 0
+        local horizZ = moveDir.Magnitude > 0.1 and moveDir.Z * spd or 0
+        h.AssemblyLinearVelocity = Vector3.new(horizX, vertVel, horizZ)
+    end)
+end
+
+local function stopFloat()
+    if floatConn then floatConn:Disconnect(); floatConn = nil end
+    local c = player.Character
+    if c then
+        local hrp = c:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.AssemblyLinearVelocity = Vector3.zero end
+    end
+end
+
+-- ============================================================
+-- GUI
+-- ============================================================
+local sg = Instance.new("ScreenGui")
+sg.Name = "FloatScript"
+sg.ResetOnSpawn = false
+sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+sg.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 130)
+frame.Position = UDim2.new(0.5, -110, 0.5, -65)
+frame.BackgroundColor3 = Color3.fromRGB(10, 20, 40)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = sg
+local _fc = Instance.new("UICorner"); _fc.CornerRadius = UDim.new(0,16); _fc.Parent = frame
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(0,170,255)
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+stroke.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,24)
+title.Position = UDim2.new(0,0,0,6)
+title.BackgroundTransparency = 1
+title.Text = "Float"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 14
+title.TextColor3 = Color3.fromRGB(0,170,255)
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = frame
+
+-- Toggle button
+local ON  = Color3.fromRGB(0,200,100)
+local OFF = Color3.fromRGB(25,38,65)
+local isFloating = false
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1,-16,0,34)
+toggleBtn.Position = UDim2.new(0,8,0,34)
+toggleBtn.BackgroundColor3 = OFF
+toggleBtn.Text = "Float: OFF"
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 13
+toggleBtn.TextColor3 = Color3.fromRGB(200,210,230)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = frame
+local _tc = Instance.new("UICorner"); _tc.CornerRadius = UDim.new(0,10); _tc.Parent = toggleBtn
+
+function updateToggleVisual(state)
+    isFloating = state
+    TweenService:Create(toggleBtn, TweenInfo.new(0.2), {
+        BackgroundColor3 = state and ON or OFF
+    }):Play()
+    toggleBtn.Text = state and "Float: ON" or "Float: OFF"
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+    isFloating = not isFloating
+    updateToggleVisual(isFloating)
+    if isFloating then startFloat() else stopFloat() end
+end)
+
+-- Float Height slider (1 - 20, steps of 0.1)
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(0.6,0,0,16)
+sliderLabel.Position = UDim2.new(0,8,0,76)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Float Height"
+sliderLabel.Font = Enum.Font.GothamBold
+sliderLabel.TextSize = 11
+sliderLabel.TextColor3 = Color3.fromRGB(180,190,210)
+sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+sliderLabel.Parent = frame
+
+local valLabel = Instance.new("TextLabel")
+valLabel.Size = UDim2.new(0.35,0,0,16)
+valLabel.Position = UDim2.new(0.65,0,0,76)
+valLabel.BackgroundTransparency = 1
+valLabel.Text = tostring(FloatHeight)
+valLabel.Font = Enum.Font.GothamBold
+valLabel.TextSize = 11
+valLabel.TextColor3 = Color3.fromRGB(0,170,255)
+valLabel.TextXAlignment = Enum.TextXAlignment.Right
+valLabel.Parent = frame
+
+local track = Instance.new("Frame")
+track.Size = UDim2.new(1,-16,0,8)
+track.Position = UDim2.new(0,8,0,98)
+track.BackgroundColor3 = Color3.fromRGB(30,40,60)
+track.BorderSizePixel = 0
+track.Parent = frame
+local _trc = Instance.new("UICorner"); _trc.CornerRadius = UDim.new(1,0); _trc.Parent = track
+
+local fill = Instance.new("Frame")
+fill.Size = UDim2.new((FloatHeight-1)/19, 0, 1, 0)
+fill.BackgroundColor3 = Color3.fromRGB(0,170,255)
+fill.BorderSizePixel = 0
+fill.Parent = track
+local _filc = Instance.new("UICorner"); _filc.CornerRadius = UDim.new(1,0); _filc.Parent = fill
+
+local dragging = false
+
+track.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+    end
+end)
+track.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        local relX = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = math.floor((1 + 19 * relX) * 10 + 0.5) / 10
+        FloatHeight = val
+        fill.Size = UDim2.new(relX, 0, 1, 0)
+        valLabel.Text = tostring(val)
+    end
+end)
