@@ -1,0 +1,1534 @@
+--[[
+========================================
+  Illusion Spawner - FIXED VERSION
+  Corrigido por: Claude
+========================================
+]]
+
+-- // [1] GLOBAL SERVICES // --
+local Players = game:GetService("Players")
+local LocalizationService = game:GetService("LocalizationService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
+local StarterGui = game:GetService("StarterGui")
+
+-- // [2] SHARED CONSTANTS & DATA // --
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local cg
+pcall(function() cg = game:GetService("CoreGui") end)
+cg = cg or PlayerGui
+
+local CoreGuiFolder = cg:FindFirstChild("3c682cadffd0b2e8bed3e9d09be3afef8f66d911fabd3cb186a80fa6d88400ec") or cg
+
+-- Safe require helper
+local function safeRequire(obj)
+	if not obj then return nil end
+	local ok, result = pcall(require, obj)
+	return ok and result or nil
+end
+
+local Packages = ReplicatedStorage:FindFirstChild("Packages")
+local gradientModule = Packages and Packages:FindFirstChild("Gradients")
+local Gradient = gradientModule and safeRequire(gradientModule)
+
+local Datas = ReplicatedStorage:FindFirstChild("Datas")
+local Rarities = Datas and safeRequire(Datas:FindFirstChild("Rarities")) or {}
+local Animals = Datas and safeRequire(Datas:FindFirstChild("Animals")) or {}
+
+local Controllers = ReplicatedStorage:FindFirstChild("Controllers")
+local SoundController = Controllers and safeRequire(Controllers:FindFirstChild("SoundController"))
+
+-- Mutation maps
+local mutationMap = {
+	["Gold"]        = {mult=0.25,  displayText="Gold",        richText='<font color="#FFDE59">Gold</font>',           color=Color3.fromRGB(255,222,89),  icon="rbxassetid://136133057822407"},
+	["Diamond"]     = {mult=0.5,   displayText="Diamond",     richText='<font color="#25C4FE">Diamond</font>',         color=Color3.fromRGB(37,196,254),  icon="rbxassetid://100875709547015"},
+	["Bloodrot"]    = {mult=1,     displayText="Bloodrot",    richText='<font color="#8A3B3C">Bloodrot</font>',         color=Color3.fromRGB(145,0,27),    icon="rbxassetid://75212036784031"},
+	["Rainbow"]     = {mult=9,     displayText="Rainbow",     richText='<font color="#ff00fb">Rainbow</font>',          color=Color3.fromRGB(255,0,251),   icon="rbxassetid://83078714090192"},
+	["Candy"]       = {mult=3,     displayText="Candy",       richText='<font color="#ff46f6">Candy</font>',            color=Color3.fromRGB(255,70,246),  icon="rbxassetid://84797673698685"},
+	["Lava"]        = {mult=5,     displayText="Lava",        richText='<font color="#ff7700">Lava</font>',             color=Color3.fromRGB(255,149,0),   icon="rbxassetid://70800471498231"},
+	["Galaxy"]      = {mult=6,     displayText="Galaxy",      richText='<font color="#aa3cff">Galaxy</font>',           color=Color3.fromRGB(170,60,255),  icon="rbxassetid://139331671405138"},
+	["Yin Yang"]    = {mult=6.5,   displayText="Yin Yang",    richText='<stroke color="#fff" thickness="2"><font color="#000">Yin</font></stroke> <stroke color="#000" thickness="2"><font color="#fff">Yang</font></stroke>', useRichText=true, color=Color3.fromRGB(255,255,255), icon="rbxassetid://112996178302302"},
+	["YinYang"]     = {mult=6.5,   displayText="Yin Yang",    richText='<stroke color="#fff" thickness="2"><font color="#000">Yin</font></stroke> <stroke color="#000" thickness="2"><font color="#fff">Yang</font></stroke>', useRichText=true, color=Color3.fromRGB(255,255,255), icon="rbxassetid://112996178302302"},
+	["Radioactive"] = {mult=7.5,   displayText="Radioactive", richText='<font color="#68f500">Radioactive</font>',      color=Color3.fromRGB(104,245,0),   icon="rbxassetid://134809510446754"},
+}
+
+local traitMap = {
+	["rbxassetid://89041930759464"]  = {name="Taco",          mult=2},
+	["rbxassetid://104229924295526"] = {name="Nyan",          mult=5},
+	["rbxassetid://99181785766598"]  = {name="Galactic",      mult=3},
+	["rbxassetid://121100427764858"] = {name="Fireworks",     mult=5},
+	["rbxassetid://110723387483939"] = {name="Zombie",        mult=4},
+	["rbxassetid://104964195846833"] = {name="Claws",         mult=4},
+	["rbxassetid://121332433272976"] = {name="Glitched",      mult=4},
+	["rbxassetid://100601425541874"] = {name="Bubblegum",     mult=3},
+	["rbxassetid://118283346037788"] = {name="Fire",          mult=5},
+	["rbxassetid://78474194088770"]  = {name="Wet",           mult=1.5},
+	["rbxassetid://83627475909869"]  = {name="Snowy",         mult=2},
+	["rbxassetid://127455440418221"] = {name="Cometstruck",   mult=2.5},
+	["rbxassetid://97725744252608"]  = {name="Explosive",     mult=3},
+	["rbxassetid://82620342632406"]  = {name="Disco",         mult=4},
+	["rbxassetid://134655415681926"] = {name="10B",           mult=3},
+	["rbxassetid://104985313532149"] = {name="Shark Fin",     mult=3},
+	["rbxassetid://115664804212096"] = {name="Matteo Hat",    mult=3.5},
+	["rbxassetid://75650816341229"]  = {name="Brazil",        mult=5},
+	["rbxassetid://115001117876534"] = {name="Sleepy",        mult=0},
+	["rbxassetid://139729696247144"] = {name="Lightning",     mult=5},
+	["rbxassetid://110910518481052"] = {name="UFO",           mult=2},
+	["rbxassetid://117478971325696"] = {name="Spider",        mult=3.5},
+	["rbxassetid://84731118566493"]  = {name="Strawberry",    mult=7},
+	["rbxassetid://119591742504251"] = {name="Paint",         mult=5},
+	["rbxassetid://89591838221335"]  = {name="Skeleton",      mult=3},
+	["rbxassetid://95128039793845"]  = {name="Sombrero",      mult=4},
+	["rbxassetid://103610037004911"] = {name="Tie",           mult=3.75},
+	["rbxassetid://123964048606874"] = {name="Witch Hat",     mult=3},
+	["rbxassetid://93350414974589"]  = {name="Indonesia",     mult=4},
+	["rbxassetid://114748221761549"] = {name="Meowl",         mult=6},
+	["rbxassetid://123115843719383"] = {name="RIP Gravestone",mult=3.5},
+	["rbxassetid://97054765273857"]  = {name="Jackolantern Pet",mult=4.5},
+	["rbxassetid://88375043733582"]  = {name="Santa Hat",     mult=4},
+}
+
+local traitList = {}
+for _, data in pairs(traitMap) do table.insert(traitList, data.name) end
+table.sort(traitList)
+
+local mutationList = {"None"}
+for mutName in pairs(mutationMap) do table.insert(mutationList, mutName) end
+table.sort(mutationList)
+
+-- // HELPERS // --
+
+local function formatNumber(num)
+	local suffixes = {"","K","M","B","T","Q"}
+	local tier = 1
+	while num >= 1000 and tier < #suffixes do num = num/1000; tier = tier+1 end
+	if num % 1 == 0 then return string.format("%d%s", num, suffixes[tier])
+	else return string.format("%.1f%s", num, suffixes[tier]) end
+end
+
+local function parseCurrency(str)
+	str = str:gsub("<[^>]+>",""):gsub("%$",""):gsub(",",""):gsub("[^%d%.%a]","")
+	local numStr, suffix = str:match("^(%d*%.?%d+)(%a*)")
+	local num = tonumber(numStr) or 0
+	suffix = suffix:upper()
+	local mult = {K=1e3,M=1e6,B=1e9,T=1e12,Q=1e15}
+	return num * (mult[suffix] or 1)
+end
+
+-- Safe cashout: doesn't WaitForChild (avoids hangs)
+local function showCashout(text, isGreen, playSound)
+	pcall(function()
+		local lb = PlayerGui:FindFirstChild("LeftBottom")
+		if not lb then return end
+		local inner = lb:FindFirstChild("LeftBottom")
+		if not inner then return end
+		local CashoutFrame = inner:FindFirstChild("Cashout")
+		if not CashoutFrame then return end
+		local template = CashoutFrame:FindFirstChild("Template")
+		if not template or not template:IsA("TextLabel") then return end
+		local label = template:Clone()
+		label.Text = text
+		label.TextColor3 = isGreen and Color3.fromRGB(13,255,0) or Color3.fromRGB(255,0,0)
+		label.Visible = true
+		label.Parent = CashoutFrame
+		local tweenInfo = TweenInfo.new(5, Enum.EasingStyle.Linear)
+		local t1 = TweenService:Create(label, tweenInfo, {TextTransparency=1})
+		local stroke = label:FindFirstChildOfClass("UIStroke")
+		if stroke then TweenService:Create(stroke, tweenInfo, {Transparency=1}):Play() end
+		t1.Completed:Once(function() label:Destroy() end)
+		t1:Play()
+		if playSound and isGreen and SoundController then
+			pcall(function() SoundController:PlaySound("Sounds.Sfx.Cashout") end)
+		end
+	end)
+end
+
+local function getTraitIconByName(traitName)
+	for assetId, data in pairs(traitMap) do
+		if data.name == traitName then return assetId end
+	end
+	return nil
+end
+
+local function applyMutationVisuals(model, mutationName)
+	if not mutationName or mutationName == "None" then return end
+	local mutData = mutationMap[mutationName]
+	if not mutData then return end
+	pcall(function()
+		local MutationsData = ReplicatedStorage.Datas:FindFirstChild("Mutations")
+		if not MutationsData then return end
+		local mutModule = safeRequire(MutationsData)
+		if not mutModule then return end
+		local mutInfo = mutModule[mutationName]
+		if mutInfo and mutInfo.Palettes then
+			local palette = mutInfo.Palettes[1]
+			if palette then
+				local colorIndex = 1
+				for _, part in ipairs(model:GetDescendants()) do
+					if part:IsA("BasePart") or part:IsA("MeshPart") then
+						part.Color = palette[colorIndex]
+						colorIndex = (colorIndex % #palette) + 1
+					end
+				end
+			end
+		end
+	end)
+end
+
+-- // SPAWN ANIMAL // --
+local spawnedIllusions = {}
+
+local function spawnAnimal(animalName, traits, mutation, targetPlayerName)
+	if not Animals or not Animals[animalName] then
+		warn("[Spawn] Animal não encontrado nos dados: " .. tostring(animalName))
+		return false, "invalid animal"
+	end
+	local animalData = Animals[animalName]
+
+	-- Try to find model
+	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local animalsFolder = modelsFolder and modelsFolder:FindFirstChild("Animals")
+	local animalModel = animalsFolder and animalsFolder:FindFirstChild(animalName)
+	if not animalModel then
+		warn("[Spawn] Modelo não encontrado: " .. tostring(animalName))
+		return false, "model not found"
+	end
+
+	-- Find plot
+	local function getPlotForPlayer(playerName)
+		local plotsFolder = workspace:FindFirstChild("Plots")
+		if not plotsFolder then return nil end
+		for _, plot in ipairs(plotsFolder:GetChildren()) do
+			-- method 1: PlotSign surface GUI
+			local plotSign = plot:FindFirstChild("PlotSign")
+			if plotSign then
+				local surfaceGui = plotSign:FindFirstChild("SurfaceGui")
+				if surfaceGui then
+					local frame = surfaceGui:FindFirstChild("Frame")
+					if frame then
+						for _, child in ipairs(frame:GetDescendants()) do
+							if child:IsA("TextLabel") then
+								local t = child.Text:gsub("^%s*(.-)%s*$","%1")
+								if t:lower() == playerName:lower() then return plot end
+							end
+						end
+					end
+				end
+			end
+			-- method 2: plot named after player or has owner value
+			local owner = plot:FindFirstChild("Owner")
+			if owner and tostring(owner.Value):lower() == playerName:lower() then
+				return plot
+			end
+		end
+		return nil
+	end
+
+	local playerName = targetPlayerName or LocalPlayer.Name
+	local targetPlot = getPlotForPlayer(playerName)
+	if not targetPlot then
+		warn("[Spawn] Plot não encontrado para: " .. tostring(playerName))
+		return false, "plot not found"
+	end
+
+	local podiums = targetPlot:FindFirstChild("AnimalPodiums")
+	if not podiums then
+		warn("[Spawn] AnimalPodiums não encontrado no plot")
+		return false, "no podiums"
+	end
+
+	-- Sort podiums
+	local podiumList = {}
+	for _, child in ipairs(podiums:GetChildren()) do
+		if child:IsA("Model") and tonumber(child.Name) then
+			table.insert(podiumList, child)
+		end
+	end
+	table.sort(podiumList, function(a,b) return tonumber(a.Name) < tonumber(b.Name) end)
+
+	local spawnCFrame, spawnAttachment, claimObj, hitbox
+
+	for _, podium in ipairs(podiumList) do
+		local base = podium:FindFirstChild("Base")
+		if base then
+			local spawnPart = base:FindFirstChild("Spawn")
+			if spawnPart then
+				local occupied = false
+				for _, obj in ipairs(spawnPart:GetChildren()) do
+					if obj:IsA("Model") and obj.Name ~= "Attachment" then
+						occupied = true; break
+					end
+				end
+				if not occupied then
+					spawnCFrame = spawnPart.CFrame * CFrame.new(0, -1.5, 0)
+					spawnAttachment = spawnPart
+					local claim = podium:FindFirstChild("Claim")
+					if claim then
+						local main = claim:FindFirstChild("Main")
+						if main then claimObj = main end
+						hitbox = claim:FindFirstChild("Hitbox")
+					end
+					break
+				end
+			end
+		end
+	end
+
+	if not spawnCFrame then
+		warn("[Spawn] Nenhum podium livre encontrado")
+		return false, "no empty podium"
+	end
+
+	-- Clone and place
+	local cloned = animalModel:Clone()
+	cloned:PivotTo(spawnCFrame)
+	cloned.Parent = workspace
+	for _, desc in ipairs(cloned:GetDescendants()) do
+		if desc:IsA("BasePart") then desc.Anchored = true end
+	end
+
+	-- Animation
+	pcall(function()
+		local animController = cloned:FindFirstChildOfClass("AnimationController")
+		local animFolder = ReplicatedStorage:FindFirstChild("Animations")
+		local animAnimals = animFolder and animFolder:FindFirstChild("Animals")
+		local animalAnimFolder = animAnimals and animAnimals:FindFirstChild(animalName)
+		local idleAnim = animalAnimFolder and animalAnimFolder:FindFirstChild("Idle")
+		if animController and idleAnim then
+			local animator = animController:FindFirstChildOfClass("Animator")
+			if not animator then
+				animator = Instance.new("Animator")
+				animator.Parent = animController
+			end
+			local track = animator:LoadAnimation(idleAnim)
+			track:Play()
+		end
+	end)
+
+	-- Sound
+	pcall(function()
+		local animalSounds = ReplicatedStorage:FindFirstChild("Sounds")
+		if animalSounds then
+			local snd = animalSounds:FindFirstChild(animalName)
+			if snd and snd:IsA("Sound") then
+				local sndClone = snd:Clone()
+				sndClone.Parent = cloned.PrimaryPart or cloned:FindFirstChildWhichIsA("BasePart")
+				sndClone:Play()
+				sndClone.Ended:Connect(function() sndClone:Destroy() end)
+			end
+		end
+	end)
+
+	-- Mutation
+	applyMutationVisuals(cloned, mutation)
+
+	-- Traits
+	pcall(function()
+		if traits and #traits > 0 and cloned.PrimaryPart then
+			local modFolder = ReplicatedStorage:FindFirstChild("Models")
+			local traitsModels = modFolder and modFolder:FindFirstChild("Traits")
+			local vfxFolder = ReplicatedStorage:FindFirstChild("Vfx")
+			local traitsVfx = vfxFolder and vfxFolder:FindFirstChild("Traits")
+			local traitsPerAnimal = modFolder and modFolder:FindFirstChild("TraitsPerAnimal")
+			for _, traitName in ipairs(traits) do
+				local customPlacement = nil
+				if traitsPerAnimal then
+					local at = traitsPerAnimal:FindFirstChild(animalName)
+					if at then customPlacement = at:FindFirstChild(traitName) end
+				end
+				if traitsVfx then
+					local vfx = traitsVfx:FindFirstChild(traitName)
+					if vfx then
+						for _, vfxItem in ipairs(vfx:GetChildren()) do
+							local vfxClone = vfxItem:Clone()
+							if customPlacement and customPlacement:IsA("Attachment") then
+								vfxClone.Parent = customPlacement
+							elseif vfxClone:IsA("ParticleEmitter") or vfxClone:IsA("Beam") or vfxClone:IsA("Trail") then
+								local att = cloned.PrimaryPart:FindFirstChildOfClass("Attachment") or Instance.new("Attachment")
+								att.Parent = cloned.PrimaryPart
+								vfxClone.Parent = att
+							else
+								vfxClone.Parent = cloned.PrimaryPart
+							end
+							if vfxClone:IsA("ParticleEmitter") or vfxClone:IsA("Trail") or vfxClone:IsA("Beam") then
+								vfxClone.Enabled = true
+							end
+						end
+					end
+				end
+				if traitsModels then
+					local traitModel = traitsModels:FindFirstChild(traitName)
+					if traitModel then
+						local traitClone = traitModel:Clone()
+						traitClone.Parent = cloned
+						if traitClone:IsA("Model") then
+							if customPlacement then
+								if customPlacement:IsA("Attachment") then traitClone:PivotTo(customPlacement.WorldCFrame)
+								elseif customPlacement:IsA("BasePart") then traitClone:PivotTo(customPlacement.CFrame) end
+							elseif traitClone.PrimaryPart then
+								traitClone:PivotTo(cloned.PrimaryPart.CFrame)
+							end
+							for _, part in ipairs(traitClone:GetDescendants()) do
+								if part:IsA("BasePart") then
+									part.Anchored = false; part.CanCollide = false; part.CanQuery = false
+									local weld = Instance.new("WeldConstraint")
+									weld.Part0 = cloned.PrimaryPart; weld.Part1 = part; weld.Parent = part
+								end
+							end
+						elseif traitClone:IsA("BasePart") then
+							traitClone.CFrame = cloned.PrimaryPart.CFrame
+							traitClone.Anchored = false; traitClone.CanCollide = false; traitClone.CanQuery = false
+							local weld = Instance.new("WeldConstraint")
+							weld.Part0 = cloned.PrimaryPart; weld.Part1 = traitClone; weld.Parent = traitClone
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	-- Generation calc
+	local totalGeneration = 0
+	local generationRate = animalData.Generation or 0
+	local traitBonus = 0
+	if traits then
+		for _, tname in ipairs(traits) do
+			for _, data in pairs(traitMap) do
+				if data.name == tname then traitBonus = traitBonus + generationRate * data.mult; break end
+			end
+		end
+	end
+	local mutationBonus = 0
+	if mutation and mutation ~= "None" and mutationMap[mutation] then
+		mutationBonus = generationRate * mutationMap[mutation].mult
+	end
+	local totalGenRate = generationRate + traitBonus + mutationBonus
+
+	-- Overhead
+	pcall(function()
+		local overheadTemplate = ReplicatedStorage:FindFirstChild("Overheads") and ReplicatedStorage.Overheads:FindFirstChild("AnimalOverhead")
+		local head = cloned:FindFirstChild("Head") or cloned.PrimaryPart
+		if overheadTemplate and head then
+			local overhead = overheadTemplate:Clone()
+			overhead.StudsOffset = Vector3.new(0,7,0)
+			overhead.Adornee = head
+			overhead.Parent = head
+			overhead.AlwaysOnTop = true
+			overhead.MaxDistance = 200
+
+			local mutationLabel = overhead:FindFirstChild("Mutation", true)
+			if mutationLabel and mutationLabel:IsA("TextLabel") then
+				if mutation and mutation ~= "None" then
+					local mData = mutationMap[mutation]
+					if mData then
+						if mData.useRichText or mData.richText then
+							mutationLabel.Text = mData.richText
+							mutationLabel.RichText = true
+						else
+							mutationLabel.Text = mData.displayText or mutation
+							mutationLabel.TextColor3 = mData.color or Color3.new(1,1,1)
+						end
+					end
+					mutationLabel.Visible = true
+				else
+					mutationLabel.Visible = false
+				end
+			end
+
+			local function updateOverhead(field, value)
+				local f = overhead:FindFirstChild(field, true)
+				if f then f.Text = value end
+			end
+			updateOverhead("DisplayName", animalData.DisplayName or animalName)
+			updateOverhead("Rarity", animalData.Rarity or "Common")
+			updateOverhead("Price", "$" .. formatNumber(animalData.Price or 0))
+			updateOverhead("Generation", "$" .. formatNumber(totalGenRate) .. "/s")
+
+			local rarityConfig = Rarities[animalData.Rarity]
+			if rarityConfig then
+				local rarityLabel = overhead:FindFirstChild("Rarity", true)
+				if rarityLabel then
+					if animalData.Rarity == "Brainrot God" then
+						rarityLabel.TextColor3 = Color3.fromRGB(255,0,221)
+					elseif animalData.Rarity == "Secret" then
+						rarityLabel.TextColor3 = Color3.new(1,1,1)
+					else
+						rarityLabel.TextColor3 = rarityConfig.Color
+					end
+				end
+			end
+
+			local traitsContainer = overhead:FindFirstChild("Traits")
+			if traitsContainer then
+				traitsContainer.Visible = true
+				local template = traitsContainer:FindFirstChild("Template")
+				if traits and #traits > 0 and template then
+					for _, tname in ipairs(traits) do
+						local iconId = getTraitIconByName(tname)
+						if iconId then
+							local icon = template:Clone()
+							icon.Image = iconId
+							icon.Visible = true
+							icon.Parent = traitsContainer
+							icon.Name = tname .. "_Icon"
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	-- Attachment marker
+	if spawnAttachment then
+		local marker = Instance.new("Attachment")
+		marker.Name = "Attachment"
+		marker.Parent = spawnAttachment
+	end
+
+	-- Proximity prompt (sell)
+	local primaryPart = cloned.PrimaryPart or cloned:FindFirstChildWhichIsA("BasePart")
+	if primaryPart then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ObjectText = animalData.DisplayName or animalName
+		prompt.ActionText = "Sell: $" .. formatNumber((animalData.Price or 0) / 2)
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.HoldDuration = 1.5
+		prompt.MaxActivationDistance = 10
+		prompt.Parent = primaryPart
+
+		prompt.Triggered:Connect(function(player)
+			if player ~= LocalPlayer then return end
+			local sellPrice = (animalData.Price or 0) / 2
+			pcall(function()
+				local lb = PlayerGui:FindFirstChild("LeftBottom")
+				local inner = lb and lb:FindFirstChild("LeftBottom")
+				local currencyLabel = inner and inner:FindFirstChild("Currency")
+				if currencyLabel and currencyLabel:IsA("TextLabel") then
+					local cur = parseCurrency(currencyLabel.Text)
+					currencyLabel.Text = "$" .. formatNumber(cur + sellPrice)
+				end
+			end)
+			pcall(function()
+				local ls = LocalPlayer:FindFirstChild("leaderstats")
+				local cash = ls and ls:FindFirstChild("Cash")
+				if cash then cash.Value = cash.Value + sellPrice end
+			end)
+			showCashout("+$" .. formatNumber(sellPrice), true, true)
+			cloned:Destroy()
+		end)
+	end
+
+	-- Generation loop
+	if claimObj and hitbox then
+		local collectLabel = claimObj:FindFirstChild("Collect")
+		if collectLabel and collectLabel:IsA("TextLabel") then
+			claimObj.Enabled = true
+			collectLabel.RichText = true
+			collectLabel.Text = 'Collect<br/><font color="#73ff00">$0</font>'
+
+			if hitbox:IsA("BasePart") then
+				hitbox.CanCollide = false
+				hitbox.CanQuery = true
+			end
+
+			local lastCollectTime = 0
+			hitbox.Touched:Connect(function(hit)
+				local player = Players:GetPlayerFromCharacter(hit.Parent)
+				if player == LocalPlayer and cloned and cloned.Parent then
+					local now = os.time()
+					if now - lastCollectTime >= 1 and totalGeneration > 0 then
+						lastCollectTime = now
+						pcall(function()
+							local lb = PlayerGui:FindFirstChild("LeftBottom")
+							local inner = lb and lb:FindFirstChild("LeftBottom")
+							local currencyLabel = inner and inner:FindFirstChild("Currency")
+							if currencyLabel and currencyLabel:IsA("TextLabel") then
+								local cur = parseCurrency(currencyLabel.Text)
+								currencyLabel.Text = "$" .. formatNumber(cur + totalGeneration)
+							end
+						end)
+						pcall(function()
+							local ls = LocalPlayer:FindFirstChild("leaderstats")
+							local cash = ls and ls:FindFirstChild("Cash")
+							if cash then cash.Value = cash.Value + totalGeneration end
+						end)
+						showCashout("+$" .. formatNumber(totalGeneration), true, true)
+						totalGeneration = 0
+						collectLabel.Text = 'Collect<br/><font color="#73ff00">$0</font>'
+					end
+				end
+			end)
+
+			claimObj:GetPropertyChangedSignal("Enabled"):Connect(function()
+				if not claimObj.Enabled then claimObj.Enabled = true end
+			end)
+
+			task.spawn(function()
+				while claimObj and claimObj.Parent and cloned and cloned.Parent do
+					task.wait(1)
+					totalGeneration = totalGeneration + totalGenRate
+					collectLabel.Text = 'Collect<br/><font color="#73ff00">$' .. formatNumber(totalGeneration) .. "</font>"
+				end
+			end)
+		end
+	end
+
+	table.insert(spawnedIllusions, cloned)
+	print("[Spawn] " .. animalName .. " spawnado com sucesso!")
+	return true, cloned
+end
+
+-- // UI CONSTRUCTION // --
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "IllusionSpawnerGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGuiFolder
+
+local DropdownOverlay = Instance.new("Frame")
+DropdownOverlay.Name = "DropdownOverlay"
+DropdownOverlay.Size = UDim2.new(1,0,1,0)
+DropdownOverlay.BackgroundTransparency = 1
+DropdownOverlay.ZIndex = 200
+DropdownOverlay.Parent = ScreenGui
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0,260,0,280)
+Main.Position = UDim2.new(0.5,-130,0.5,-140)
+Main.BackgroundColor3 = Color3.new(0,0,0)
+Main.BackgroundTransparency = 0.2
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+local mainCorner = Instance.new("UICorner"); mainCorner.CornerRadius = UDim.new(0,10); mainCorner.Parent = Main
+local mainStroke = Instance.new("UIStroke"); mainStroke.Color = Color3.new(0.176,0.176,0.176); mainStroke.Thickness = 1; mainStroke.Parent = Main
+Main.Parent = ScreenGui
+
+-- Title bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1,0,0,34)
+TitleBar.BackgroundColor3 = Color3.new(0.02,0.02,0.02)
+TitleBar.BackgroundTransparency = 0.1
+TitleBar.ZIndex = 5
+TitleBar.Parent = Main
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1,-60,1,0)
+TitleText.Position = UDim2.new(0,10,0,0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "Illusion Spawner - Fixed"
+TitleText.TextColor3 = Color3.new(1,1,1)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextSize = 9
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.ZIndex = 6
+TitleText.Parent = TitleBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0,22,0,22)
+CloseBtn.Position = UDim2.new(1,-30,0.5,-11)
+CloseBtn.BackgroundColor3 = Color3.new(0.137,0.137,0.137)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1,1,1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 10
+CloseBtn.BorderSizePixel = 0
+CloseBtn.ZIndex = 6
+local closeCorner = Instance.new("UICorner"); closeCorner.CornerRadius = UDim.new(0,6); closeCorner.Parent = CloseBtn
+CloseBtn.Parent = TitleBar
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0,22,0,22)
+MinBtn.Position = UDim2.new(1,-56,0.5,-11)
+MinBtn.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.new(1,1,1)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 10
+MinBtn.BorderSizePixel = 0
+MinBtn.ZIndex = 6
+local minCorner = Instance.new("UICorner"); minCorner.CornerRadius = UDim.new(0,6); minCorner.Parent = MinBtn
+MinBtn.Parent = TitleBar
+
+-- Tab bar
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1,0,0,26)
+TabBar.Position = UDim2.new(0,0,0,34)
+TabBar.ZIndex = 4
+TabBar.Parent = Main
+
+local MainTabBtn = Instance.new("TextButton")
+MainTabBtn.Size = UDim2.new(0.5,0,1,0)
+MainTabBtn.Text = "MAIN"
+MainTabBtn.TextSize = 9
+MainTabBtn.Font = Enum.Font.GothamBold
+MainTabBtn.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+MainTabBtn.TextColor3 = Color3.new(1,1,1)
+MainTabBtn.BorderSizePixel = 0
+MainTabBtn.Parent = TabBar
+
+local TradeTabBtn = Instance.new("TextButton")
+TradeTabBtn.Size = UDim2.new(0.5,0,1,0)
+TradeTabBtn.Position = UDim2.new(0.5,0,0,0)
+TradeTabBtn.BackgroundColor3 = Color3.new(0,0,0)
+TradeTabBtn.BackgroundTransparency = 0.2
+TradeTabBtn.Text = "TRADE"
+TradeTabBtn.TextSize = 9
+TradeTabBtn.Font = Enum.Font.GothamBold
+TradeTabBtn.TextColor3 = Color3.new(1,1,1)
+TradeTabBtn.BorderSizePixel = 0
+TradeTabBtn.Parent = TabBar
+
+-- Content scroll (MAIN)
+local ContentScroll = Instance.new("ScrollingFrame")
+ContentScroll.Name = "ContentScroll"
+ContentScroll.Size = UDim2.new(1,-12,1,-70)
+ContentScroll.Position = UDim2.new(0,6,0,64)
+ContentScroll.BackgroundTransparency = 1
+ContentScroll.BorderSizePixel = 0
+ContentScroll.ScrollBarThickness = 3
+ContentScroll.ScrollBarImageColor3 = Color3.new(0.235,0.235,0.235)
+ContentScroll.CanvasSize = UDim2.new(0,0,0,0)
+ContentScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ContentScroll.Parent = Main
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0,3)
+listLayout.Parent = ContentScroll
+
+local scrollPadding = Instance.new("UIPadding")
+scrollPadding.PaddingTop = UDim.new(0,4)
+scrollPadding.PaddingBottom = UDim.new(0,10)
+scrollPadding.Parent = ContentScroll
+
+-- Trade scroll (TRADE tab)
+local TradeScroll = Instance.new("ScrollingFrame")
+TradeScroll.Name = "TradeScroll"
+TradeScroll.Size = UDim2.new(1,-12,1,-70)
+TradeScroll.Position = UDim2.new(0,6,0,64)
+TradeScroll.BackgroundTransparency = 1
+TradeScroll.BorderSizePixel = 0
+TradeScroll.ScrollBarThickness = 3
+TradeScroll.ScrollBarImageColor3 = Color3.new(0.235,0.235,0.235)
+TradeScroll.CanvasSize = UDim2.new(0,0,0,0)
+TradeScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+TradeScroll.Visible = false
+TradeScroll.Parent = Main
+
+local tradeListLayout = Instance.new("UIListLayout")
+tradeListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tradeListLayout.Padding = UDim.new(0,3)
+tradeListLayout.Parent = TradeScroll
+
+local tradePadding = Instance.new("UIPadding")
+tradePadding.PaddingTop = UDim.new(0,4)
+tradePadding.PaddingBottom = UDim.new(0,10)
+tradePadding.Parent = TradeScroll
+
+-- Helpers to add UI elements
+local function addSectionHeader(text, layoutOrder, parent)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,0,16)
+	frame.BackgroundTransparency = 1
+	frame.LayoutOrder = layoutOrder
+	frame.Parent = parent or ContentScroll
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,1,0)
+	label.Text = text
+	label.TextColor3 = Color3.new(0.7,0.7,0.7)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 9
+	label.BackgroundTransparency = 1
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0,4)
+	padding.Parent = label
+	return frame
+end
+
+local function addContentButton(text, layoutOrder, parent)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1,0,0,24)
+	btn.BackgroundColor3 = Color3.new(0.059,0.059,0.059)
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 9
+	btn.BorderSizePixel = 0
+	btn.LayoutOrder = layoutOrder
+	btn.Parent = parent or ContentScroll
+	return btn
+end
+
+local function addTextboxRow(labelText, defaultVal, layoutOrder, parent)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,0,24)
+	frame.BackgroundTransparency = 1
+	frame.LayoutOrder = layoutOrder
+	frame.Parent = parent or TradeScroll
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0.5,0,1,0)
+	lbl.Text = labelText
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 9
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.BackgroundTransparency = 1
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = frame
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0.45,0,0,20)
+	box.Position = UDim2.new(0.54,0,0.5,-10)
+	box.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+	box.Text = defaultVal
+	box.TextColor3 = Color3.new(1,1,1)
+	box.Font = Enum.Font.GothamMedium
+	box.TextSize = 9
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.BorderSizePixel = 0
+	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,4); corner.Parent = box
+	box.Parent = frame
+	return box
+end
+
+-- // MAIN TAB ELEMENTS // --
+addSectionHeader("SPAWN ILLUSION", 1)
+local animalBtn   = addContentButton("Animal: Baskito Egg", 2)
+local mutationBtn = addContentButton("Mutation: None", 3)
+local traitsBtn   = addContentButton("Traits: 0 Selected", 4)
+
+addSectionHeader("SPAWN TARGET", 100)
+local targetBtn = addContentButton("Target: ME (Your Side)", 101)
+
+addSectionHeader("ACTIONS", 200)
+local spawnBtn = addContentButton("Spawn", 201)
+spawnBtn.BackgroundColor3 = Color3.new(0.118,0.392,0.784)
+
+addSectionHeader("UTILITIES", 300)
+local clearTraitsBtn   = addContentButton("Remover Todas as Traits", 301)
+local clearBrainrotsBtn = addContentButton("Remover Todos os Brainrots", 302)
+local forceHimReadyBtn = addContentButton("Force HIM Ready", 303)
+
+addSectionHeader("KEYBINDS", 400)
+local function createKeybindItem(labelText, defaultKey, layoutOrder)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,0,0,24)
+	frame.BackgroundTransparency = 1
+	frame.LayoutOrder = layoutOrder
+	frame.Parent = ContentScroll
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0.55,0,1,0)
+	lbl.Text = labelText
+	lbl.Font = Enum.Font.GothamMedium
+	lbl.TextSize = 9
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.BackgroundTransparency = 1
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = frame
+	local keyBtn = Instance.new("TextButton")
+	keyBtn.Size = UDim2.new(0.42,0,0,20)
+	keyBtn.Position = UDim2.new(0.56,0,0.5,-10)
+	keyBtn.Text = defaultKey
+	keyBtn.Font = Enum.Font.GothamBold
+	keyBtn.TextSize = 9
+	keyBtn.TextColor3 = Color3.new(1,1,1)
+	keyBtn.BackgroundColor3 = Color3.new(0.137,0.137,0.137)
+	keyBtn.BorderSizePixel = 0
+	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,4); corner.Parent = keyBtn
+	keyBtn.Parent = frame
+	return keyBtn
+end
+
+local toggleKeyBtn = createKeybindItem("Toggle GUI", "RightShift", 401)
+local spawnKeyBtn  = createKeybindItem("Spawn Animal", "T", 402)
+local tradeKeyBtn  = createKeybindItem("Trade Last Player", "Y", 403)
+
+-- // TRADE TAB ELEMENTS // --
+addSectionHeader("TRADE SETTINGS", 1, TradeScroll)
+local otherNameBox  = addTextboxRow("OTHER NAME", "PlayerName", 2, TradeScroll)
+local otherSlotsBox = addTextboxRow("OTHER SLOTS", "20", 3, TradeScroll)
+local yourSlotsBox  = addTextboxRow("YOUR SLOTS (MAX)", "25", 4, TradeScroll)
+
+addSectionHeader("AÇÕES DE TRADE", 10, TradeScroll)
+local fakeNotifBtn   = addContentButton("ENVIAR NOTIF. TRADE FALSA", 11, TradeScroll)
+local tradeLastBtn   = addContentButton("TRADE LAST PLAYER", 12, TradeScroll)
+tradeLastBtn.BackgroundColor3 = Color3.new(0.118,0.392,0.784)
+local tradeInstantBtn = addContentButton("START TRADE (INSTANT)", 13, TradeScroll)
+
+-- // MODAL // --
+local ModalOverlay = Instance.new("Frame")
+ModalOverlay.Name = "ModalOverlay"
+ModalOverlay.Size = UDim2.new(1,0,1,0)
+ModalOverlay.BackgroundColor3 = Color3.new(0,0,0)
+ModalOverlay.BackgroundTransparency = 0.5
+ModalOverlay.ZIndex = 300
+ModalOverlay.Visible = false
+ModalOverlay.Parent = ScreenGui
+
+local ModalFrame = Instance.new("Frame")
+ModalFrame.Size = UDim2.new(0,460,0,340)
+ModalFrame.Position = UDim2.new(0.5,-230,0.5,-170)
+ModalFrame.BackgroundColor3 = Color3.new(0.05,0.05,0.05)
+ModalFrame.BorderSizePixel = 0
+ModalFrame.ZIndex = 301
+ModalFrame.Parent = ModalOverlay
+
+local ModalTitleBar = Instance.new("Frame")
+ModalTitleBar.Size = UDim2.new(1,0,0,30)
+ModalTitleBar.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+ModalTitleBar.ZIndex = 302
+ModalTitleBar.Parent = ModalFrame
+
+local ModalTitle = Instance.new("TextLabel")
+ModalTitle.Size = UDim2.new(1,-40,1,0)
+ModalTitle.Position = UDim2.new(0,14,0,0)
+ModalTitle.Text = "SELECT"
+ModalTitle.TextSize = 12
+ModalTitle.TextColor3 = Color3.new(1,1,1)
+ModalTitle.Font = Enum.Font.GothamBold
+ModalTitle.BackgroundTransparency = 1
+ModalTitle.ZIndex = 303
+ModalTitle.Parent = ModalTitleBar
+
+local ModalCloseBtn = Instance.new("TextButton")
+ModalCloseBtn.Size = UDim2.new(0,22,0,22)
+ModalCloseBtn.Position = UDim2.new(1,-30,0.5,-11)
+ModalCloseBtn.BackgroundColor3 = Color3.new(0.137,0.137,0.137)
+ModalCloseBtn.Text = "X"
+ModalCloseBtn.TextColor3 = Color3.new(1,1,1)
+ModalCloseBtn.Font = Enum.Font.GothamBold
+ModalCloseBtn.TextSize = 10
+ModalCloseBtn.BorderSizePixel = 0
+ModalCloseBtn.ZIndex = 303
+local mCloseCorner = Instance.new("UICorner"); mCloseCorner.CornerRadius = UDim.new(0,6); mCloseCorner.Parent = ModalCloseBtn
+ModalCloseBtn.Parent = ModalTitleBar
+
+local ModalSearch = Instance.new("TextBox")
+ModalSearch.Size = UDim2.new(1,-20,0,26)
+ModalSearch.Position = UDim2.new(0,10,1,-36)
+ModalSearch.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+ModalSearch.BorderSizePixel = 0
+ModalSearch.PlaceholderText = "Pesquisar..."
+ModalSearch.TextColor3 = Color3.new(1,1,1)
+ModalSearch.Font = Enum.Font.Gotham
+ModalSearch.TextSize = 11
+ModalSearch.ZIndex = 302
+ModalSearch.ClearTextOnFocus = false
+ModalSearch.Parent = ModalFrame
+local searchPadding = Instance.new("UIPadding")
+searchPadding.PaddingLeft = UDim.new(0,8)
+searchPadding.Parent = ModalSearch
+
+local ModalScroll = Instance.new("ScrollingFrame")
+ModalScroll.Size = UDim2.new(1,-20,1,-70)
+ModalScroll.Position = UDim2.new(0,10,0,40)
+ModalScroll.BackgroundTransparency = 1
+ModalScroll.BorderSizePixel = 0
+ModalScroll.ScrollBarThickness = 4
+ModalScroll.ScrollBarImageColor3 = Color3.new(0.235,0.235,0.235)
+ModalScroll.CanvasSize = UDim2.new(0,0,0,0)
+ModalScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ModalScroll.ZIndex = 302
+ModalScroll.Parent = ModalFrame
+
+local ModalGrid = Instance.new("UIGridLayout")
+ModalGrid.CellPadding = UDim2.new(0,6,0,6)
+ModalGrid.SortOrder = Enum.SortOrder.LayoutOrder
+ModalGrid.CellSize = UDim2.new(0,215,0,30)
+ModalGrid.Parent = ModalScroll
+
+ModalCloseBtn.MouseButton1Click:Connect(function()
+	ModalOverlay.Visible = false
+end)
+
+-- Modal state
+local selectedAnimal = "Baskito Egg"
+local selectedTraits = {}
+local selectedMutation = "None"
+local targetMode = "ME"
+local currentModalType = nil
+local modalSearchConn = nil
+
+local function createModalItem(parent, text, iconId)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1,0,0,24)
+	btn.BackgroundColor3 = Color3.new(0.059,0.059,0.059)
+	btn.Text = ""
+	btn.BorderSizePixel = 0
+	btn.ZIndex = 304
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,1,0)
+	label.Text = text
+	label.TextSize = 10
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.GothamBold
+	label.BackgroundTransparency = 1
+	label.ZIndex = 304
+	label.Parent = btn
+	if iconId then
+		local img = Instance.new("ImageLabel")
+		img.Size = UDim2.new(0,20,0,20)
+		img.Position = UDim2.new(0,4,0.5,-10)
+		img.BackgroundTransparency = 1
+		img.Image = iconId
+		img.ZIndex = 304
+		img.Parent = btn
+		label.Position = UDim2.new(0,28,0,0)
+		label.Size = UDim2.new(1,-28,1,0)
+	end
+	btn.Parent = parent
+	return btn
+end
+
+local function clearModalItems()
+	for _, child in ipairs(ModalScroll:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+end
+
+local function populateAnimalModal(filter)
+	clearModalItems()
+	local animalNames = {}
+	for name in pairs(Animals) do table.insert(animalNames, name) end
+	table.sort(animalNames)
+	for _, name in ipairs(animalNames) do
+		if not filter or filter == "" or name:lower():find(filter:lower(), 1, true) then
+			local btn = createModalItem(ModalScroll, name)
+			btn.MouseButton1Click:Connect(function()
+				selectedAnimal = name
+				animalBtn.Text = "Animal: " .. name
+				ModalOverlay.Visible = false
+			end)
+		end
+	end
+end
+
+local function populateMutationModal(filter)
+	clearModalItems()
+	for _, mut in ipairs(mutationList) do
+		if not filter or filter == "" or mut:lower():find(filter:lower(), 1, true) then
+			local iconId = (mut ~= "None" and mutationMap[mut]) and mutationMap[mut].icon or nil
+			local btn = createModalItem(ModalScroll, mut, iconId)
+			btn.MouseButton1Click:Connect(function()
+				selectedMutation = mut
+				mutationBtn.Text = "Mutation: " .. mut
+				ModalOverlay.Visible = false
+			end)
+		end
+	end
+end
+
+local function populateTraitModal(filter)
+	clearModalItems()
+	for _, tname in ipairs(traitList) do
+		if not filter or filter == "" or tname:lower():find(filter:lower(), 1, true) then
+			local btn = createModalItem(ModalScroll, tname)
+			-- restore selected state
+			if table.find(selectedTraits, tname) then
+				btn.BackgroundColor3 = Color3.new(0.078,0.392,0.078)
+			end
+			btn.MouseButton1Click:Connect(function()
+				local idx = table.find(selectedTraits, tname)
+				if idx then
+					table.remove(selectedTraits, idx)
+					btn.BackgroundColor3 = Color3.new(0.059,0.059,0.059)
+				else
+					table.insert(selectedTraits, tname)
+					btn.BackgroundColor3 = Color3.new(0.078,0.392,0.078)
+				end
+				traitsBtn.Text = "Traits: " .. #selectedTraits .. " Selected"
+			end)
+		end
+	end
+end
+
+local function showModal(modalType)
+	currentModalType = modalType
+	ModalOverlay.Visible = true
+	ModalSearch.Text = ""
+
+	if modalType == "animal" then
+		ModalTitle.Text = "SELECIONAR ANIMAL"
+		populateAnimalModal()
+	elseif modalType == "mutation" then
+		ModalTitle.Text = "SELECIONAR MUTATION"
+		populateMutationModal()
+	elseif modalType == "trait" then
+		ModalTitle.Text = "SELECIONAR TRAITS"
+		populateTraitModal()
+	end
+
+	if modalSearchConn then modalSearchConn:Disconnect() end
+	modalSearchConn = ModalSearch:GetPropertyChangedSignal("Text"):Connect(function()
+		local f = ModalSearch.Text
+		if currentModalType == "animal" then populateAnimalModal(f)
+		elseif currentModalType == "mutation" then populateMutationModal(f)
+		elseif currentModalType == "trait" then populateTraitModal(f) end
+	end)
+end
+
+-- // TAB SWITCHING // --
+MainTabBtn.MouseButton1Click:Connect(function()
+	ContentScroll.Visible = true
+	TradeScroll.Visible = false
+	MainTabBtn.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+	TradeTabBtn.BackgroundColor3 = Color3.new(0,0,0)
+end)
+TradeTabBtn.MouseButton1Click:Connect(function()
+	ContentScroll.Visible = false
+	TradeScroll.Visible = true
+	TradeTabBtn.BackgroundColor3 = Color3.new(0.078,0.078,0.078)
+	MainTabBtn.BackgroundColor3 = Color3.new(0,0,0)
+end)
+
+-- // BUTTON CONNECTIONS // --
+animalBtn.MouseButton1Click:Connect(function() showModal("animal") end)
+mutationBtn.MouseButton1Click:Connect(function() showModal("mutation") end)
+traitsBtn.MouseButton1Click:Connect(function() showModal("trait") end)
+
+targetBtn.MouseButton1Click:Connect(function()
+	if targetMode == "ME" then
+		targetMode = "HIM"
+		targetBtn.Text = "Target: HIM (Other Side)"
+		targetBtn.BackgroundColor3 = Color3.new(0.118,0.235,0.118)
+	else
+		targetMode = "ME"
+		targetBtn.Text = "Target: ME (Your Side)"
+		targetBtn.BackgroundColor3 = Color3.new(0.059,0.059,0.059)
+	end
+end)
+
+spawnBtn.MouseButton1Click:Connect(function()
+	if not selectedAnimal or selectedAnimal == "" then
+		warn("[Spawn] Nenhum animal selecionado")
+		return
+	end
+	local targetName = nil
+	if targetMode == "HIM" then
+		targetName = otherNameBox.Text
+		if not targetName or targetName == "" then
+			warn("[Spawn] Nome do player não definido na aba TRADE")
+			return
+		end
+	end
+	local ok, result = spawnAnimal(
+		selectedAnimal,
+		selectedTraits,
+		selectedMutation ~= "None" and selectedMutation or nil,
+		targetName
+	)
+	if not ok then
+		warn("[Spawn] Falhou: " .. tostring(result))
+	end
+end)
+
+clearTraitsBtn.MouseButton1Click:Connect(function()
+	selectedTraits = {}
+	traitsBtn.Text = "Traits: 0 Selected"
+end)
+
+clearBrainrotsBtn.MouseButton1Click:Connect(function()
+	for _, model in ipairs(spawnedIllusions) do
+		if model and model.Parent then model:Destroy() end
+	end
+	spawnedIllusions = {}
+	print("[Illusion] Todos os brainrots removidos")
+end)
+
+forceHimReadyBtn.MouseButton1Click:Connect(function()
+	pcall(function()
+		-- Try multiple common GUI paths
+		local paths = {
+			PlayerGui:FindFirstChild("TradeLiveTrade"),
+			PlayerGui:FindFirstChild("TradeGui"),
+			PlayerGui:FindFirstChild("Trade"),
+		}
+		for _, tradeGui in ipairs(paths) do
+			if not tradeGui then continue end
+			local t = tradeGui:FindFirstChild("TradeLiveTrade") or tradeGui
+			if not t then continue end
+			local other = t:FindFirstChild("Other")
+			if not other then continue end
+			local readyBtn = other:FindFirstChild("ReadyButton")
+			if readyBtn then
+				readyBtn.BackgroundColor3 = Color3.new(0.318,0.620,0.337)
+				local txt = readyBtn:FindFirstChild("Txt") or readyBtn:FindFirstChild("Text")
+				if txt then txt.Text = "CONFIRM" end
+			end
+			local readyFrame = other:FindFirstChild("Ready")
+			if readyFrame then
+				local native = readyFrame:FindFirstChild("NativeReady")
+				if native then
+					local clone = native:Clone()
+					clone.Name = "CustomReady"
+					clone.Visible = true
+					clone.Parent = other
+					local label = clone:FindFirstChild("Label") or clone:FindFirstChildOfClass("TextLabel")
+					if label then label.Text = "Ready!" end
+				end
+			end
+			print("[Trade] Force HIM Ready aplicado")
+			break
+		end
+	end)
+end)
+
+-- // TRADE FUNCTIONS // --
+
+-- Helper: find trade GUI across possible paths
+local function findTradeGui()
+	local candidates = {"TradeLiveTrade","TradeGui","Trade","LiveTrade"}
+	for _, name in ipairs(candidates) do
+		local g = PlayerGui:FindFirstChild(name)
+		if g then
+			local inner = g:FindFirstChild(name) or g
+			return inner
+		end
+	end
+	return nil
+end
+
+local function sendFakeTradeNotification()
+	local targetName = otherNameBox.Text
+	if not targetName or targetName == "" then
+		warn("[Trade] Nome do player vazio")
+		return
+	end
+	pcall(function()
+		-- Method 1: use existing TradePrompts template
+		local tradePrompts = PlayerGui:FindFirstChild("TradePrompts")
+		local prompt = tradePrompts and tradePrompts:FindFirstChild("Prompt")
+		if prompt then
+			local clone = prompt:Clone()
+			-- Try to set username label
+			local usernameLabel = clone:FindFirstChild("Username") or clone:FindFirstChildOfClass("TextLabel")
+			if usernameLabel then
+				usernameLabel.Text = "@" .. targetName .. " quer trocar com você"
+			end
+			clone.Visible = true
+			clone.Parent = PlayerGui
+			clone.Position = UDim2.new(0.5,-150,0.1,0)
+			-- Yes/No buttons
+			local yesBtn = clone:FindFirstChild("Yes") or clone:FindFirstChild("Accept")
+			local noBtn  = clone:FindFirstChild("No")  or clone:FindFirstChild("Decline")
+			if yesBtn then yesBtn.Activated:Connect(function() clone:Destroy() end) end
+			if noBtn  then noBtn.Activated:Connect(function() clone:Destroy() end) end
+			-- Auto-remove after 8 seconds
+			task.delay(8, function() if clone and clone.Parent then clone:Destroy() end end)
+			print("[Trade] Notificação falsa enviada para " .. targetName)
+			return
+		end
+
+		-- Method 2: create a simple notification frame
+		local notifFrame = Instance.new("Frame")
+		notifFrame.Size = UDim2.new(0,300,0,80)
+		notifFrame.Position = UDim2.new(0.5,-150,0.1,0)
+		notifFrame.BackgroundColor3 = Color3.new(0.1,0.1,0.1)
+		notifFrame.BorderSizePixel = 0
+		notifFrame.ZIndex = 500
+		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,8); corner.Parent = notifFrame
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1,0,0.4,0)
+		title.Text = "Pedido de Trade!"
+		title.TextColor3 = Color3.fromRGB(255,220,0)
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 14
+		title.BackgroundTransparency = 1
+		title.ZIndex = 501
+		title.Parent = notifFrame
+
+		local msg = Instance.new("TextLabel")
+		msg.Size = UDim2.new(1,0,0.35,0)
+		msg.Position = UDim2.new(0,0,0.4,0)
+		msg.Text = "@" .. targetName .. " quer trocar com você"
+		msg.TextColor3 = Color3.new(1,1,1)
+		msg.Font = Enum.Font.Gotham
+		msg.TextSize = 11
+		msg.BackgroundTransparency = 1
+		msg.ZIndex = 501
+		msg.Parent = notifFrame
+
+		local acceptBtn = Instance.new("TextButton")
+		acceptBtn.Size = UDim2.new(0.45,0,0.28,0)
+		acceptBtn.Position = UDim2.new(0.03,0,0.72,0)
+		acceptBtn.BackgroundColor3 = Color3.fromRGB(40,160,40)
+		acceptBtn.Text = "Aceitar"
+		acceptBtn.TextColor3 = Color3.new(1,1,1)
+		acceptBtn.Font = Enum.Font.GothamBold
+		acceptBtn.TextSize = 11
+		acceptBtn.BorderSizePixel = 0
+		acceptBtn.ZIndex = 502
+		local ac = Instance.new("UICorner"); ac.CornerRadius = UDim.new(0,4); ac.Parent = acceptBtn
+		acceptBtn.Parent = notifFrame
+		acceptBtn.MouseButton1Click:Connect(function() notifFrame:Destroy() end)
+
+		local declineBtn = Instance.new("TextButton")
+		declineBtn.Size = UDim2.new(0.45,0,0.28,0)
+		declineBtn.Position = UDim2.new(0.52,0,0.72,0)
+		declineBtn.BackgroundColor3 = Color3.fromRGB(160,40,40)
+		declineBtn.Text = "Recusar"
+		declineBtn.TextColor3 = Color3.new(1,1,1)
+		declineBtn.Font = Enum.Font.GothamBold
+		declineBtn.TextSize = 11
+		declineBtn.BorderSizePixel = 0
+		local dc = Instance.new("UICorner"); dc.CornerRadius = UDim.new(0,4); dc.Parent = declineBtn
+		declineBtn.Parent = notifFrame
+		declineBtn.MouseButton1Click:Connect(function() notifFrame:Destroy() end)
+
+		notifFrame.Parent = PlayerGui
+		task.delay(8, function() if notifFrame and notifFrame.Parent then notifFrame:Destroy() end end)
+		print("[Trade] Notificação customizada criada para " .. targetName)
+	end)
+end
+
+local function tradeLastPlayer()
+	local targetName = otherNameBox.Text
+	if not targetName or targetName == "" then
+		warn("[Trade] Nome do player vazio")
+		return
+	end
+	pcall(function()
+		local t = findTradeGui()
+		if not t then
+			warn("[Trade] Trade GUI não encontrada")
+			return
+		end
+
+		-- Update signs
+		local yourSign = t:FindFirstChild("YourSign")
+		local otherSign = t:FindFirstChild("OtherSign")
+		if yourSign then
+			local uLabel = yourSign:FindFirstChild("Username") or yourSign:FindFirstChildOfClass("TextLabel")
+			if uLabel then uLabel.Text = "Sua oferta" end
+			local img = yourSign:FindFirstChild("PlayerImage")
+			if img then
+				local hs = img:FindFirstChild("Headshot")
+				if hs then hs.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=100&h=100" end
+			end
+		end
+		if otherSign then
+			local uLabel = otherSign:FindFirstChild("Username") or otherSign:FindFirstChildOfClass("TextLabel")
+			if uLabel then uLabel.Text = targetName .. "'s offer" end
+		end
+
+		-- Update slot counts
+		local yourPanel  = t:FindFirstChild("Your")
+		local otherPanel = t:FindFirstChild("Other")
+		if yourPanel then
+			local slots = yourPanel:FindFirstChild("BaseSlots") or yourPanel:FindFirstChildOfClass("TextLabel")
+			if slots then slots.Text = "0/" .. yourSlotsBox.Text end
+			local ready = yourPanel:FindFirstChild("Ready")
+			if ready then ready.Visible = false end
+		end
+		if otherPanel then
+			local slots = otherPanel:FindFirstChild("BaseSlots") or otherPanel:FindFirstChildOfClass("TextLabel")
+			if slots then slots.Text = "0/" .. otherSlotsBox.Text end
+			local ready = otherPanel:FindFirstChild("Ready")
+			if ready then ready.Visible = false end
+			local readyBtn = otherPanel:FindFirstChild("ReadyButton")
+			if readyBtn then
+				readyBtn.BackgroundColor3 = Color3.new(0.439,0.439,0.439)
+				local txt = readyBtn:FindFirstChild("Txt") or readyBtn:FindFirstChild("Text")
+				if txt then txt.Text = "READY" end
+			end
+		end
+
+		local timer = t:FindFirstChild("Timer")
+		if timer then timer.Text = "⏰5.5s Left" end
+
+		-- Countdown animation
+		task.spawn(function()
+			local countdown = 5.5
+			while countdown > 0 do
+				if timer then timer.Text = "⏰" .. string.format("%.1f", countdown) .. "s Left" end
+				task.wait(0.1)
+				countdown = countdown - 0.1
+			end
+			if timer then timer.Text = "Processando..." end
+			task.wait(0.5)
+
+			if otherPanel then
+				local readyBtn = otherPanel:FindFirstChild("ReadyButton")
+				if readyBtn then
+					readyBtn.BackgroundColor3 = Color3.new(0.318,0.620,0.337)
+					local txt = readyBtn:FindFirstChild("Txt") or readyBtn:FindFirstChild("Text")
+					if txt then txt.Text = "CONFIRM" end
+				end
+				local readyFrame = otherPanel:FindFirstChild("Ready")
+				if readyFrame then
+					local native = readyFrame:FindFirstChild("NativeReady")
+					if native then
+						local clone = native:Clone()
+						clone.Name = "CustomReady"
+						clone.Visible = true
+						clone.Parent = otherPanel
+						local lbl = clone:FindFirstChild("Label") or clone:FindFirstChildOfClass("TextLabel")
+						if lbl then lbl.Text = "Confirmado!" end
+					end
+				end
+			end
+
+			-- Success notification
+			task.wait(1)
+			local notifGui = PlayerGui:FindFirstChild("Notification")
+			local notifInner = notifGui and notifGui:FindFirstChild("Notification")
+			local notifTemplate = notifInner and notifInner:FindFirstChild("Template")
+			if notifTemplate then
+				local notif = notifTemplate:Clone()
+				notif.RichText = true
+				notif.Text = '<font color="#92FF67">Trade com @' .. targetName .. ' completado! 🎉</font>'
+				notif.Visible = true
+				notif.Parent = notifInner
+				task.delay(5, function() if notif and notif.Parent then notif:Destroy() end end)
+			else
+				-- fallback simple notif
+				showCashout("Trade com " .. targetName .. " OK!", true, false)
+			end
+			print("[Trade] Trade completado com " .. targetName)
+		end)
+	end)
+end
+
+local function startTradeInstant()
+	local targetName = otherNameBox.Text
+	if not targetName or targetName == "" then
+		warn("[Trade] Nome do player vazio")
+		return
+	end
+	pcall(function()
+		local t = findTradeGui()
+		if not t then
+			warn("[Trade] Trade GUI não encontrada")
+			return
+		end
+		local otherPanel = t:FindFirstChild("Other")
+		local timer = t:FindFirstChild("Timer")
+		if timer then timer.Text = "⏰0.0s Left" end
+		if otherPanel then
+			local readyBtn = otherPanel:FindFirstChild("ReadyButton")
+			if readyBtn then
+				readyBtn.BackgroundColor3 = Color3.new(0.318,0.620,0.337)
+				local txt = readyBtn:FindFirstChild("Txt") or readyBtn:FindFirstChild("Text")
+				if txt then txt.Text = "CONFIRM" end
+			end
+			local readyFrame = otherPanel:FindFirstChild("Ready")
+			if readyFrame then
+				local native = readyFrame:FindFirstChild("NativeReady")
+				if native then
+					local clone = native:Clone()
+					clone.Name = "CustomReady"
+					clone.Visible = true
+					clone.Parent = otherPanel
+					local lbl = clone:FindFirstChild("Label") or clone:FindFirstChildOfClass("TextLabel")
+					if lbl then lbl.Text = "Confirmado!" end
+				end
+			end
+		end
+		print("[Trade] Trade instant aplicado")
+	end)
+end
+
+-- Connect trade buttons
+fakeNotifBtn.MouseButton1Click:Connect(sendFakeTradeNotification)
+tradeLastBtn.MouseButton1Click:Connect(tradeLastPlayer)
+tradeInstantBtn.MouseButton1Click:Connect(startTradeInstant)
+
+-- // KEYBIND REBINDING // --
+local currentKeybinds = {
+	toggle = Enum.KeyCode.RightShift,
+	spawn  = Enum.KeyCode.T,
+	trade  = Enum.KeyCode.Y,
+}
+local rebindTarget = nil
+
+local function setRebindTarget(btn, keyName)
+	if rebindTarget then rebindTarget.BackgroundColor3 = Color3.new(0.137,0.137,0.137) end
+	rebindTarget = btn
+	rebindTarget.BackgroundColor3 = Color3.fromRGB(180,120,0)
+	rebindTarget.Text = "..."
+	-- listen once
+	local conn; conn = UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+		conn:Disconnect()
+		currentKeybinds[keyName] = input.KeyCode
+		rebindTarget.Text = input.KeyCode.Name
+		rebindTarget.BackgroundColor3 = Color3.new(0.137,0.137,0.137)
+		rebindTarget = nil
+	end)
+end
+
+toggleKeyBtn.MouseButton1Click:Connect(function() setRebindTarget(toggleKeyBtn, "toggle") end)
+spawnKeyBtn.MouseButton1Click:Connect(function()  setRebindTarget(spawnKeyBtn, "spawn") end)
+tradeKeyBtn.MouseButton1Click:Connect(function()  setRebindTarget(tradeKeyBtn, "trade") end)
+
+-- // KEYBINDS // --
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if rebindTarget then return end -- skip while rebinding
+	if input.KeyCode == currentKeybinds.toggle then
+		Main.Visible = not Main.Visible
+	elseif input.KeyCode == currentKeybinds.spawn then
+		spawnBtn:Invoke() -- triggers same as button click
+		local targetName = nil
+		if targetMode == "HIM" then targetName = otherNameBox.Text end
+		spawnAnimal(selectedAnimal, selectedTraits, selectedMutation ~= "None" and selectedMutation or nil, targetName)
+	elseif input.KeyCode == currentKeybinds.trade then
+		tradeLastPlayer()
+	end
+end)
+
+-- // MINIMIZE // --
+local minimized = false
+MinBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	ContentScroll.Visible = not minimized
+	TradeScroll.Visible = false
+	TabBar.Visible = not minimized
+	Main.Size = minimized and UDim2.new(0,260,0,34) or UDim2.new(0,260,0,280)
+end)
+
+-- // CLOSE // --
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
+
+-- // DRAGGING // --
+local dragging = false
+local dragStartPos = nil
+local dragStartMain = nil
+TitleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStartPos = input.Position
+		dragStartMain = Main.Position
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStartPos
+		Main.Position = UDim2.new(
+			dragStartMain.X.Scale, dragStartMain.X.Offset + delta.X,
+			dragStartMain.Y.Scale, dragStartMain.Y.Offset + delta.Y
+		)
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- // INIT // --
+Main.Visible = true
+print("[Illusion Spawner Fixed] Carregado com sucesso!")
