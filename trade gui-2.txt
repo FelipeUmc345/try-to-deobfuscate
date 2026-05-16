@@ -1,0 +1,993 @@
+-- TradeLiveTrade GUI - Main trading interface
+local gui = {}
+
+-- Services
+local Players = game:GetService("Players")
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Helper function to create instances with properties
+local function createInstance(className, properties)
+    local instance = Instance.new(className)
+    for prop, value in pairs(properties) do
+        instance[prop] = value
+    end
+    return instance
+end
+
+-- Main ScreenGui
+gui.ScreenGui = createInstance("ScreenGui", {
+    Name = "TradeLiveTrade",
+    Parent = playerGui
+})
+
+-- Main Frame
+gui.MainFrame = createInstance("Frame", {
+    Name = "TradeLiveTrade",
+    Parent = gui.ScreenGui,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.6, 0, 0.6, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 1,
+    BorderColor3 = Color3.fromRGB(0, 0, 0),
+    BorderSizePixel = 0,
+    Visible = true
+})
+
+-- Aspect ratio constraint
+gui.AspectRatio = createInstance("UIAspectRatioConstraint", {
+    Name = "UIAspectRatioConstraint",
+    Parent = gui.MainFrame,
+    AspectRatio = 1.75
+})
+
+-- Header section
+gui.Header = createInstance("Frame", {
+    Name = "Header",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(0.5, 0, 0.001, 0),
+    Size = UDim2.new(1, 0, 0.152, 0),
+    AnchorPoint = Vector2.new(0.5, 0),
+    BackgroundColor3 = Color3.fromRGB(85, 112, 127),
+    BorderColor3 = Color3.fromRGB(0, 0, 0),
+    BorderSizePixel = 0
+})
+
+-- Close button
+gui.CloseButton = createInstance("ImageButton", {
+    Name = "Close",
+    Parent = gui.Header,
+    Position = UDim2.new(0.948, 0, 0.5, 0),
+    Size = UDim2.new(0.079, 0, 0.777, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    BackgroundTransparency = 1,
+    BorderColor3 = Color3.fromRGB(0, 0, 0),
+    BorderSizePixel = 0,
+    Image = "rbxassetid://105016554772347",
+    HoverImage = "rbxassetid://137110183435251",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+-- Close button text
+gui.CloseText = createInstance("TextLabel", {
+    Name = "Txt",
+    Parent = gui.CloseButton,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 0.56, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "X",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.CloseText,
+    Thickness = 2.197
+})
+
+-- Header text container
+gui.HeaderTexts = createInstance("Frame", {
+    Name = "Txts",
+    Parent = gui.Header,
+    Position = UDim2.new(0.022, 0, 0.5, 0),
+    Size = UDim2.new(0.5, 0, 1, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0
+})
+
+createInstance("UIListLayout", {
+    Name = "UIListLayout",
+    Parent = gui.HeaderTexts,
+    Padding = UDim.new(0.035, 0),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    VerticalAlignment = Enum.VerticalAlignment.Center
+})
+
+-- "Trade" label
+gui.TradeLabel = createInstance("TextLabel", {
+    Name = "Txt1",
+    Parent = gui.HeaderTexts,
+    Position = UDim2.new(0.137, 0, 0.333, 0),
+    Size = UDim2.new(0.273, 0, 0.496, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    LayoutOrder = 1,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "Trade",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.TradeLabel,
+    Thickness = 1.465
+})
+
+-- Subtitle label
+gui.SubtitleLabel = createInstance("TextLabel", {
+    Name = "Txt2",
+    Parent = gui.HeaderTexts,
+    Position = UDim2.new(0.861, 0, 0.765, 0),
+    Size = UDim2.new(1.722, 0, 0.298, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    LayoutOrder = 2,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "Select Brainrots to offer",
+    TextColor3 = Color3.fromRGB(201, 201, 201),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.SubtitleLabel,
+    Thickness = 1.465
+})
+
+-- Background
+gui.Background = createInstance("Frame", {
+    Name = "bg",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.33,
+    BorderColor3 = Color3.fromRGB(0, 0, 0),
+    BorderSizePixel = 0,
+    ZIndex = 0
+})
+
+-- Your offer section
+gui.YourOffer = createInstance("Frame", {
+    Name = "Your",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(0, 0, 0.154, 0),
+    Size = UDim2.new(0.5, 0, 0.85, 0),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0
+})
+
+-- Player image (your side)
+gui.YourPlayerImage = createInstance("ImageLabel", {
+    Name = "PlayerImage",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.041, 0, 0.073, 0),
+    Size = UDim2.new(0.08, 0, 0.086, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.5,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    ScaleType = Enum.ScaleType.Fit
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourPlayerImage,
+    Thickness = 0.732
+})
+
+-- Headshot image (your side)
+gui.YourHeadshot = createInstance("ImageLabel", {
+    Name = "Headshot",
+    Parent = gui.YourPlayerImage,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 0,
+    Image = "rbxthumb://type=AvatarHeadShot&id=47528603&w=100&h=100",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+-- Username label (your side)
+gui.YourUsername = createInstance("TextLabel", {
+    Name = "Username",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.32, 0, 0.071, 0),
+    Size = UDim2.new(0.34, 0, 0.063, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "Your Offer",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourUsername,
+    Thickness = 1.465
+})
+
+-- Scrolling frame for your items
+gui.YourScrollingFrame = createInstance("ScrollingFrame", {
+    Name = "ScrollingFrame",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.504, 0, 0.556, 0),
+    Size = UDim2.new(0.964, 0, 0.812, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Active = true,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    CanvasSize = UDim2.new(0, 0, 0, 0),
+    ScrollBarThickness = 8
+})
+
+createInstance("UIGridLayout", {
+    Name = "UIGridLayout",
+    Parent = gui.YourScrollingFrame
+})
+
+-- Base slots counter (your side)
+gui.YourBaseSlots = createInstance("TextLabel", {
+    Name = "BaseSlots",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.741, 0, 0.073, 0),
+    Size = UDim2.new(0.295, 0, 0.07, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "0/10",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourBaseSlots,
+    Thickness = 1.465
+})
+
+-- Base image icon (your side)
+gui.YourBaseImage = createInstance("ImageLabel", {
+    Name = "BaseImage",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.48, 0, 0.072, 0),
+    Size = UDim2.new(0.1, 0, 0.12, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    Image = "rbxassetid://74587977394382",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+-- Ready indicator (your side)
+gui.YourReady = createInstance("Frame", {
+    Name = "Ready",
+    Parent = gui.YourOffer,
+    Position = UDim2.new(0.504, 0, 0.97, 0),
+    Size = UDim2.new(0.985, 0, 0.83, 0),
+    AnchorPoint = Vector2.new(0.5, 1),
+    BackgroundColor3 = Color3.fromRGB(57, 204, 24),
+    BackgroundTransparency = 0.75,
+    BorderSizePixel = 0,
+    Visible = true,
+    ZIndex = 5
+})
+
+gui.YourReadyLabel = createInstance("TextLabel", {
+    Name = "Label",
+    Parent = gui.YourReady,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.85, 0, 0.188, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "Ready!",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourReadyLabel,
+    Thickness = 2.197
+})
+
+-- Other player's offer section
+gui.OtherOffer = createInstance("Frame", {
+    Name = "Other",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(0.5, 0, 0.151, 0),
+    Size = UDim2.new(0.5, 0, 0.846, 0),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0
+})
+
+-- Player image (other side)
+gui.OtherPlayerImage = createInstance("ImageLabel", {
+    Name = "PlayerImage",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0, 0, 0.083, 0),
+    Size = UDim2.new(0.08, 0, 0.086, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.5,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    ScaleType = Enum.ScaleType.Fit
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherPlayerImage,
+    Thickness = 0.732
+})
+
+-- Headshot image (other side)
+gui.OtherHeadshot = createInstance("ImageLabel", {
+    Name = "Headshot",
+    Parent = gui.OtherPlayerImage,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 0,
+    Image = "rbxthumb://type=AvatarHeadShot&id=47528603&w=100&h=100",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+-- Username label (other side)
+gui.OtherUsername = createInstance("TextLabel", {
+    Name = "Username",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.363, 0, 0.078, 0),
+    Size = UDim2.new(0.506, 0, 0.064, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "???'s Offer",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherUsername,
+    Thickness = 1.465
+})
+
+-- Ready button (other side)
+gui.ReadyButton = createInstance("ImageButton", {
+    Name = "ReadyButton",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.275, 0, 0.885, 0),
+    Size = UDim2.new(0.418, 0, 0.1, 0),
+    AnchorPoint = Vector2.new(0.5, 1),
+    BackgroundColor3 = Color3.fromRGB(81, 158, 86),
+    BorderSizePixel = 0,
+    Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
+    ImageTransparency = 1
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.ReadyButton,
+    Thickness = 1.099
+})
+
+gui.ReadyButtonText = createInstance("TextLabel", {
+    Name = "Txt",
+    Parent = gui.ReadyButton,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.9, 0, 0.7, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
+    Text = "READY",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.ReadyButtonText,
+    Thickness = 1.099
+})
+
+-- Cancel button
+gui.CancelButton = createInstance("ImageButton", {
+    Name = "Cancel",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.742, 0, 0.885, 0),
+    Size = UDim2.new(0.418, 0, 0.1, 0),
+    AnchorPoint = Vector2.new(0.5, 1),
+    BackgroundColor3 = Color3.fromRGB(233, 66, 66),
+    BorderSizePixel = 0,
+    Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
+    ImageTransparency = 1
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.CancelButton,
+    Thickness = 1.099
+})
+
+gui.CancelButtonText = createInstance("TextLabel", {
+    Name = "Txt",
+    Parent = gui.CancelButton,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.9, 0, 0.7, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
+    Text = "CANCEL",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.CancelButtonText,
+    Thickness = 1.099
+})
+
+-- Timer display
+gui.Timer = createInstance("TextLabel", {
+    Name = "Timer",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.5, 0, 0.943, 0),
+    Size = UDim2.new(0.884, 0, 0.068, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "⏰5.5s Left",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.Timer,
+    Thickness = 1.465
+})
+
+-- Scrolling frame for other player's items
+gui.OtherScrollingFrame = createInstance("ScrollingFrame", {
+    Name = "ScrollingFrame",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.498, 0, 0.446, 0),
+    Size = UDim2.new(0.964, 0, 0.591, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Active = true,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    CanvasSize = UDim2.new(0, 0, 0, 0),
+    ScrollBarThickness = 8
+})
+
+createInstance("UIGridLayout", {
+    Name = "UIGridLayout",
+    Parent = gui.OtherScrollingFrame
+})
+
+-- Base slots counter (other side)
+gui.OtherBaseSlots = createInstance("TextLabel", {
+    Name = "BaseSlots",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.845, 0, 0.073, 0),
+    Size = UDim2.new(0.212, 0, 0.07, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "0/10",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherBaseSlots,
+    Thickness = 1.465
+})
+
+-- Base image icon (other side)
+gui.OtherBaseImage = createInstance("ImageLabel", {
+    Name = "BaseImage",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.625, 0, 0.072, 0),
+    Size = UDim2.new(0.1, 0, 0.12, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    Image = "rbxassetid://74587977394382",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+-- Ready indicator (other side)
+gui.OtherReady = createInstance("Frame", {
+    Name = "Ready",
+    Parent = gui.OtherOffer,
+    Position = UDim2.new(0.5, 0, 0.754, 0),
+    Size = UDim2.new(0.98, 0, 0.611, 0),
+    AnchorPoint = Vector2.new(0.5, 1),
+    BackgroundColor3 = Color3.fromRGB(57, 204, 24),
+    BackgroundTransparency = 0.75,
+    BorderSizePixel = 0,
+    Visible = true,
+    ZIndex = 5
+})
+
+gui.OtherReadyLabel = createInstance("TextLabel", {
+    Name = "Label",
+    Parent = gui.OtherReady,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.85, 0, 0.262, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "Ready!",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherReadyLabel,
+    Thickness = 2.197
+})
+
+-- Your sign section
+gui.YourSign = createInstance("Frame", {
+    Name = "YourSign",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(0.03, 0, 0.6, 0),
+    Size = UDim2.new(0.4, 0, 1, 0),
+    AnchorPoint = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    SizeConstraint = Enum.SizeConstraint.RelativeYY
+})
+
+gui.YourSignAspectRatio = createInstance("UIAspectRatioConstraint", {
+    Name = "UIAspectRatioConstraint",
+    Parent = gui.YourSign,
+    AspectRatio = 0.75
+})
+
+gui.YourSignHolder = createInstance("Frame", {
+    Name = "Holder",
+    Parent = gui.YourSign,
+    Position = UDim2.new(0.5, 0, 0, 0),
+    Size = UDim2.new(1, 0, 0.5, 0),
+    AnchorPoint = Vector2.new(0.5, 0),
+    BackgroundColor3 = Color3.fromRGB(85, 112, 127),
+    BorderSizePixel = 0,
+    ZIndex = 2
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourSignHolder,
+    Thickness = 2.197
+})
+
+createInstance("UICorner", {
+    Name = "UICorner",
+    Parent = gui.YourSignHolder,
+    CornerRadius = UDim.new(0.03, 0)
+})
+
+-- Your sign text frame
+gui.YourSignTextFrame = createInstance("Frame", {
+    Name = "Frame",
+    Parent = gui.YourSignHolder,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.975, 0, 0.935, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0
+})
+
+gui.YourSignTextBox = createInstance("TextBox", {
+    Name = "TextBox",
+    Parent = gui.YourSignTextFrame,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
+    PlaceholderText = "Sign",
+    Text = "🧾 Last Offer",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 25,
+    TextWrapped = true,
+    PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourSignTextBox,
+    Thickness = 1.831
+})
+
+createInstance("UITextSizeConstraint", {
+    Name = "UITextSizeConstraint",
+    Parent = gui.YourSignTextBox
+})
+
+-- Your sign player info
+gui.YourSignPlayerImage = createInstance("ImageLabel", {
+    Name = "PlayerImage",
+    Parent = gui.YourSign,
+    Position = UDim2.new(0.041, 0, 0.12, 0),
+    Size = UDim2.new(0.172, 0, 0.137, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.5,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    ScaleType = Enum.ScaleType.Fit
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourSignPlayerImage,
+    Thickness = 1.465
+})
+
+gui.YourSignHeadshot = createInstance("ImageLabel", {
+    Name = "Headshot",
+    Parent = gui.YourSignPlayerImage,
+    Position = UDim2.new(0.5, 0, 0.5, 2),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 0,
+    Image = "rbxthumb://type=AvatarHeadShot&id=47528603&w=100&h=100",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+gui.YourSignUsername = createInstance("TextLabel", {
+    Name = "Username",
+    Parent = gui.YourSign,
+    Position = UDim2.new(0.637, 0, 0.12, 0),
+    Size = UDim2.new(0.727, 0, 0.1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "@???",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.YourSignUsername,
+    Thickness = 1.465
+})
+
+-- Other player's sign section
+gui.OtherSign = createInstance("Frame", {
+    Name = "OtherSign",
+    Parent = gui.MainFrame,
+    Position = UDim2.new(1.03, 0, 0.6, 0),
+    Size = UDim2.new(0.4, 0, 1, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    SizeConstraint = Enum.SizeConstraint.RelativeYY
+})
+
+gui.OtherSignAspectRatio = createInstance("UIAspectRatioConstraint", {
+    Name = "UIAspectRatioConstraint",
+    Parent = gui.OtherSign,
+    AspectRatio = 0.75
+})
+
+gui.OtherSignHolder = createInstance("Frame", {
+    Name = "Holder",
+    Parent = gui.OtherSign,
+    Position = UDim2.new(0.5, 0, 0, 0),
+    Size = UDim2.new(1, 0, 0.5, 0),
+    AnchorPoint = Vector2.new(0.5, 0),
+    BackgroundColor3 = Color3.fromRGB(85, 112, 127),
+    BorderSizePixel = 0,
+    ZIndex = 2
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherSignHolder,
+    Thickness = 2.197
+})
+
+createInstance("UICorner", {
+    Name = "UICorner",
+    Parent = gui.OtherSignHolder,
+    CornerRadius = UDim.new(0.03, 0)
+})
+
+-- Other sign text frame
+gui.OtherSignTextFrame = createInstance("Frame", {
+    Name = "Frame",
+    Parent = gui.OtherSignHolder,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0.975, 0, 0.935, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0
+})
+
+gui.OtherSignTextLabel = createInstance("TextLabel", {
+    Name = "TextBox",
+    Parent = gui.OtherSignTextFrame,
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal),
+    Text = "Sign",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 25,
+    TextWrapped = true
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherSignTextLabel,
+    Thickness = 1.831
+})
+
+-- Other sign player info
+gui.OtherSignPlayerImage = createInstance("ImageLabel", {
+    Name = "PlayerImage",
+    Parent = gui.OtherSign,
+    Position = UDim2.new(0.041, 0, 0.12, 0),
+    Size = UDim2.new(0.172, 0, 0.137, 0),
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.5,
+    BorderSizePixel = 0,
+    LayoutOrder = 2,
+    ZIndex = 2,
+    ScaleType = Enum.ScaleType.Fit
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherSignPlayerImage,
+    Thickness = 1.465
+})
+
+gui.OtherSignHeadshot = createInstance("ImageLabel", {
+    Name = "Headshot",
+    Parent = gui.OtherSignPlayerImage,
+    Position = UDim2.new(0.5, 0, 0.5, 2),
+    Size = UDim2.new(1, 0, 1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 0,
+    Image = "rbxthumb://type=AvatarHeadShot&id=47528603&w=100&h=100",
+    ScaleType = Enum.ScaleType.Fit
+})
+
+gui.OtherSignUsername = createInstance("TextLabel", {
+    Name = "Username",
+    Parent = gui.OtherSign,
+    Position = UDim2.new(0.637, 0, 0.12, 0),
+    Size = UDim2.new(0.727, 0, 0.1, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+    Text = "@???",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    TextSize = 14,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createInstance("UIStroke", {
+    Name = "UIStroke",
+    Parent = gui.OtherSignUsername,
+    Thickness = 1.465
+})
+
+-- Create template item for display (hidden by default)
+local function createItemTemplate(parent)
+    local template = createInstance("Frame", {
+        Name = "Template",
+        Parent = parent,
+        Position = UDim2.new(0.343, 0, 0, 0),
+        Size = UDim2.new(0.237, 0, 0.688, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Visible = true
+    })
+    
+    local spacer = createInstance("ImageButton", {
+        Name = "Spacer",
+        Parent = template,
+        Position = UDim2.new(0, 2, 0, 2),
+        Size = UDim2.new(0.901, 0, 0.92, 0),
+        BackgroundColor3 = Color3.fromRGB(35, 45, 50),
+        BorderSizePixel = 0
+    })
+    
+    createInstance("UIStroke", {
+        Name = "UIStroke",
+        Parent = spacer,
+        Thickness = 1.465
+    })
+    
+    local viewportFrame = createInstance("ViewportFrame", {
+        Name = "ViewportFrame",
+        Parent = spacer
+    })
+    
+    local title = createInstance("TextLabel", {
+        Name = "Title",
+        Parent = spacer,
+        Position = UDim2.new(0.5, 0, 0.091, 0),
+        Size = UDim2.new(0.949, 0, 0.123, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+        Text = "Cooki and Milki",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextScaled = true,
+        TextSize = 14,
+        TextWrapped = true
+    })
+    
+    createInstance("UIStroke", {
+        Name = "UIStroke",
+        Parent = title,
+        Thickness = 1.465
+    })
+    
+    local cash = createInstance("TextLabel", {
+        Name = "Cash",
+        Parent = spacer,
+        Position = UDim2.new(0.531, 0, 0.9, 0),
+        Size = UDim2.new(0.93, 0, 0.193, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal),
+        Text = "$120M/S",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextScaled = true,
+        TextSize = 14,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Right
+    })
+    
+    createInstance("UIStroke", {
+        Name = "UIStroke",
+        Parent = cash,
+        Thickness = 1.465
+    })
+    
+    local traits = createInstance("Frame", {
+        Name = "Traits",
+        Parent = spacer,
+        Position = UDim2.new(0.5, 0, 0.175, 0),
+        Size = UDim2.new(0.95, 0, 0.15, 0),
+        AnchorPoint = Vector2.new(0.5, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0
+    })
+    
+    createInstance("UIListLayout", {
+        Name = "UIListLayout",
+        Parent = traits,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        FillDirection = Enum.FillDirection.Horizontal
+    })
+    
+    return template
+end
+
+-- Create templates for both sides
+gui.YourItemTemplate = createItemTemplate(gui.YourScrollingFrame)
+gui.OtherItemTemplate = createItemTemplate(gui.OtherScrollingFrame)
+
+return gui
